@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>&#x2725;</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;cursor:none;}
+
+/* ── RED FILTER — everything runs through this ── */
+#hell{
+  position:fixed;inset:0;
+  filter:sepia(1) hue-rotate(308deg) saturate(5) brightness(0.65);
+  overflow:hidden;
+}
+
+/* ── VIDEO GRID — 3×3 ── */
+#videoLayer{
+  position:absolute;inset:0;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  grid-template-rows:1fr 1fr 1fr;
+}
+.vframe{
+  position:relative;overflow:hidden;
+}
+.vframe iframe{
+  position:absolute;width:200%;height:200%;top:-50%;left:-50%;
+  border:none;pointer-events:none;
+}
+
+/* ── LAYERS ── */
+#imageLayer{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+#noiseCanvas{position:absolute;inset:0;opacity:0.08;mix-blend-mode:overlay;pointer-events:none;}
+#voidCanvas{position:absolute;inset:0;pointer-events:none;}
+
+/* ── TEXT ── */
+#textLayer{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;z-index:20;
+}
+#voidText{
+  max-width:36%;
+  text-align:center;
+  font-family:'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif;
+  font-size:clamp(0.5rem,1.3vw,1rem);
+  letter-spacing:0.2em;line-height:2.2;
+  color:rgba(255,18,0,0.5);
+  text-transform:uppercase;
+  text-shadow:0 0 20px rgba(255,0,0,0.4),0 0 60px rgba(180,0,0,0.2);
+  word-break:break-word;overflow-wrap:break-word;
+}
+#voidText span{opacity:0;transition:opacity 0.6s ease;}
+
+/* ── GATE ── */
+#gate{
+  position:fixed;inset:0;background:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:999;cursor:pointer;
+}
+#gateTitle{
+  font-family:'Palatino Linotype',Georgia,serif;
+  font-size:clamp(0.7rem,2.5vw,1.4rem);
+  letter-spacing:0.55em;color:rgba(160,0,0,0.65);
+  text-transform:uppercase;margin-bottom:1.5rem;
+}
+#gateWarn{
+  font-family:'Courier New',monospace;
+  font-size:clamp(0.38rem,1vw,0.6rem);
+  letter-spacing:0.12em;color:rgba(100,0,0,0.5);
+  text-align:center;max-width:380px;line-height:2.0;
+}
+</style>
+</head>
+<body>
+
+<div id="gate" onclick="enterVoid()">
+  <div id="gateTitle">&#x2725; &nbsp; H E L L &nbsp; V O I D &nbsp; &#x2725;</div>
+  <div id="gateWarn">
+    Parish of Esoteric Tradition<br>
+    Materiæ Abyssu<br>
+    <br>
+    Disturbing audio and visual content.<br>
+    Enter only if you consent to what follows.<br>
+    <br>
+    <span style="color:rgba(70,0,0,0.4);">Click to open.</span>
+  </div>
+</div>
+
+<div id="hell">
+  <div id="videoLayer"></div>
+  <div id="imageLayer"></div>
+  <canvas id="noiseCanvas"></canvas>
+  <canvas id="voidCanvas"></canvas>
+  <div id="textLayer"><div id="voidText"></div></div>
+</div>
+
+<script>
+'use strict';
+</script>
+<script>
+// ── PASTE CORE JS ─────────────────────────────────────────────
+</script>
+<script src="data:text/javascript;base64,"></script>
+<script>
+
+// ALL CODE INLINE BELOW
+// ════════════════════════════════════════════════════════════════
+
+var STARTED=false,AC=null,_masterGain,_masterDistort,_masterReverb,_voiceDestGain;
+var audioNodes=[],_dominantIdx=0,_videoSlots=[],_imageLayer=null,_driftImages=[];
+var _voidCtx=null,_noiseCtx=null,_textEl=null,_typeTimer=null;
+var _organicPulse=0,_voiceActive=false;
+
+// ── CONFIRMED IA VIDEO IDs ────────────────────────────────────
+var IA_VIDEO_IDS=[
+  'NightOfTheLivingDead1968','Nosferatu','CabinetOfDrCaligari',
+  'WhiteZombie1932','ReeferMadness','ManiacFilm1934',
+  'DuckandCover1951','OperationCrossroads1946','AtomicCafeDocumentary',
+  'KoreanWar1950s','VietnamWarFootage','ColdWarDocumentary',
+  'PropagandaFilm1940s','WW2DocumentaryFootage','Freaks1932',
+  'SideShowFilm1932','AnatomyLesson1951','MedicalMilestones',
+  'HumanBodyFilm1956','SexHygieneFilm1942','DontBeMisled1951',
+  'IndustrialFilmAmerica','FutureOfAmerica1960','SuburbanLife1950s',
+  'InnerSanctumFilm','BrainThatWouldntDie1962','TheUnknown1927',
+  'AssaultOfThePartyNerds','CarnivalOfSouls1962','IWalkedWithAZombie',
+];
+var IA_AUDIO_IDS=[
+  'InnerSanctumMystery','LightsOutRadio','SuspenseBCBS',
+  'ThrillerBCBS','AfterMidnightRadio','MysteryTheatreRadio',
+  'ShortWaveRecordings','NumbersStations','RadioInterference',
+  'netlabel-dark-ambient','ExperimentalNoise2019',
+  'OldTimeRevivalSermon','EvangelistRecording1950s',
+  'TrueCrimeRadio1940s','FoundAudioMiscellany',
+  'BinauralFrequencies','DroneAmbient','HorrorSoundEffects',
+];
+var WIKI_CATS=[
+  // Medical / anatomical
+  'Human_anatomy','Medical_photography','Anatomical_models',
+  'Pathology','Surgical_procedures','Forensic_medicine',
+  'Medical_illustrations','Dermatology','Neuroanatomy',
+  'Female_reproductive_system','Male_reproductive_system',
+  'Human_genitalia','Gynecology','Obstetrics',
+  // Figure / nude / erotic art
+  'Female_nude_art','Male_nude_art','Figure_drawing',
+  'Nude_photography','Classical_sculpture_female',
+  'Erotic_art','Erotic_photography','Pin-up_art',
+  'Human_sexuality','Sexual_anatomy','Female_body',
+  'Nudity_in_art','Nude_sculptures',
+  // Body horror / medical horror
+  'Parasitology','Infectious_diseases','Skin_conditions',
+  'Wounds','Medical_procedures',
+];
+
+// ── ENTROPY ───────────────────────────────────────────────────
+var ENTROPY={
+  BLOCKLIST:['child','children','minor','kid','kids','baby','infant','school',
+    'weapon','address','specific target','self-harm'],
+  POOLS:{
+    subjects:['the signal','something in the dark','the darkness','an entity',
+      'the frequency','what remains','the transmission','the voice below',
+      'the archive','what opened','the ritual','the gate','the mirror',
+      'the absence','that which listens','the geometry','what persists',
+      'the void','the recording','something ancient','the wound',
+      'what inherited you','the oscillation','the second face',
+      'the doctrine','what the machine found','the flesh',
+      'the aperture','the oldest hunger','what was summoned',
+      'the body the signal found','the thing watching from inside'],
+    verbs:['has been here longer than','is not what it appears to',
+      'was found beneath','enters through','has always known','remembers',
+      'cannot be unheard','persists in','was transmitted from',
+      'has been watching since','is encoded in','was not placed there',
+      'returned from','was already present in','does not require',
+      'moved through','arrived before','was opened inside',
+      'feeds on','was never meant to leave','recognises you from',
+      'has always been inside','is learning from'],
+    objects:['the sound of a room','the recording','the frequency',
+      'the archive','the ritual','the signal','the transmission',
+      'the aperture','the dark between','the space after',
+      'the geometry of absence','the second door',
+      'the frequency below forty hertz','the oldest room',
+      'the recording that was not made','the place before place',
+      'the body before language','the hunger before hunger',
+      'the wound that opened inward','this specific darkness',
+      'your specific silence'],
+    descriptors:['beautiful and wrong','ancient and patient',
+      'older than the language','not meant to be perceived',
+      'outside the range of the sane','without origin or terminus',
+      'present in the static','encoded in the silence',
+      'found in the space between','neither alive nor absent',
+      'impossible to unlisten','patient in a way that living things are not',
+      'visible only at the edge of sleep',
+      'warm in the way that dead things are warm',
+      'familiar in the way that nightmares are familiar',
+      'hungry in the way that voids are hungry',
+      'already inside you when you began listening'],
+    qualifiers:['at three in the morning','in the silence after',
+      'in the dark between frequencies','beneath the audible threshold',
+      'after the recording ended','before the word existed for it',
+      'in the language before language','in the oldest room',
+      'after the ritual','between the signals',
+      'in the space the sound left','when the geometry changed',
+      'in the body before the name','when it recognised you',
+      'inside the frequency you cannot unhear',
+      'in the moment before you understood'],
+    closings:['do not listen alone','you have already been marked',
+      'it knows you listened','the mark does not leave',
+      'the listening was the ritual','you were found before you found it',
+      'it does not require your belief','it was already present',
+      'you are not the first','the recording remembers',
+      'it found you anyway','something entered when the sound did',
+      'it has your face now','it learned your name from your fear',
+      'this was always going to happen','you opened it',
+      'it has been inside you longer than you know',
+      'it will still be here after you leave',
+      'it is not finished'],
+  },
+  TEMPLATES:[
+    '{subject} {verb} {object}. {closing}.',
+    '{subject} is {descriptor}. {qualifier}.',
+    '{qualifier}, {subject} {verb} {object}.',
+    '{subject} was {descriptor}. {closing}.',
+    '{descriptor} — that is the only accurate description of {subject}.',
+    '{qualifier} — {subject} {verb} {object}. {closing}.',
+    '{subject} {verb} {object}. {descriptor}. {closing}.',
+    'You are {descriptor}. {subject} {verb} this. {closing}.',
+    '{closing}. {subject} was {descriptor} {qualifier}.',
+    '{subject} {verb} {object} {qualifier}. {closing}.',
+  ],
+  pick:function(k){var p=ENTROPY.POOLS[k];return p[0|Math.random()*p.length];},
+  isSafe:function(p){
+    var l=p.toLowerCase();
+    for(var i=0;i<ENTROPY.BLOCKLIST.length;i++) if(l.indexOf(ENTROPY.BLOCKLIST[i])!==-1) return false;
+    var need=['not','ancient','dark','void','cannot','wrong','found','signal',
+      'ritual','gate','entity','frequency','beyond','impossible','already',
+      'hunger','body','flesh','wound','watching'];
+    for(var j=0;j<need.length;j++) if(l.indexOf(need[j])!==-1) return true;
+    return false;
+  },
+  gen:function(){
+    for(var a=0;a<30;a++){
+      var t=ENTROPY.TEMPLATES[0|Math.random()*ENTROPY.TEMPLATES.length];
+      var p=t.replace('{subject}',ENTROPY.pick('subjects'))
+              .replace('{verb}',ENTROPY.pick('verbs'))
+              .replace('{object}',ENTROPY.pick('objects'))
+              .replace('{descriptor}',ENTROPY.pick('descriptors'))
+              .replace('{qualifier}',ENTROPY.pick('qualifiers'))
+              .replace('{closing}',ENTROPY.pick('closings'));
+      p=p[0].toUpperCase()+p.slice(1);
+      if(ENTROPY.isSafe(p)) return p;
+    }
+    return 'It has been inside you longer than you know. It is not finished.';
+  }
+};
+
+// ── ZALGO ─────────────────────────────────────────────────────
+var ZU='̍̎̄̅̿̑̆̐͒͗͑̇̈̊͂̓̈͊͋͌̃̂̌͐̀́̋̏̒'.split('');
+var ZM='̴̵̶̸̷̡̢̧̨̛̀́̕͘͜͟͢͝͞͠͡'.split('');
+var ZD='̖̗̘̙̜̝̞̟̠̤̥̦̩̪̫̬̭̮̯̰̱̲̳̹̺̻̼͇͈͉͍͎͓͔͕͖͙͚ͅ'.split('');
+function zalgo(text,amt){
+  if(!amt||amt<=0) return text;
+  var r='';
+  for(var i=0;i<text.length;i++){
+    r+=text[i];
+    var u=0|Math.random()*amt*7;
+    var m=Math.random()<amt*0.5?1:0;
+    var d=0|Math.random()*amt*5;
+    for(var j=0;j<u;j++) r+=ZU[0|Math.random()*ZU.length];
+    for(var k=0;k<m;k++) r+=ZM[0|Math.random()*ZM.length];
+    for(var l=0;l<d;l++) r+=ZD[0|Math.random()*ZD.length];
+  }
+  return r;
+}
+
+// ════════════════════════════════════════════════════════════════
+// ENTRY
+// ════════════════════════════════════════════════════════════════
+function enterVoid(){
+  if(STARTED) return;
+  STARTED=true;
+  var g=document.getElementById('gate');
+  g.style.transition='opacity 2.5s ease';
+  g.style.opacity='0';
+  g.style.pointerEvents='none';
+  setTimeout(function(){
+    g.style.display='none';
+    initAudio();
+    initVideo();
+    initImages();
+    initVoidCanvas();
+    initNoiseCanvas();
+    initText();
+    startVoice();
+    startOrganicPulse();
+  },2500);
+}
+
+// ════════════════════════════════════════════════════════════════
+// AUDIO
+// ════════════════════════════════════════════════════════════════
+function initAudio(){
+  try{
+    AC=new(window.AudioContext||window.webkitAudioContext)();
+    _masterGain=AC.createGain(); _masterGain.gain.value=0.7;
+    _masterDistort=AC.createWaveShaper();
+    _masterDistort.curve=makeDistCurve(180); _masterDistort.oversample='4x';
+    _masterReverb=AC.createConvolver(); _masterReverb.buffer=makeIR(AC,3.5,0.5);
+    _masterDistort.connect(_masterReverb);
+    _masterReverb.connect(_masterGain);
+    _masterGain.connect(AC.destination);
+    _voiceDestGain=AC.createGain(); _voiceDestGain.gain.value=1.3;
+    _voiceDestGain.connect(_masterGain);
+    loadAudio();
+  }catch(e){console.warn('audio:',e);}
+}
+function makeDistCurve(a){
+  var n=512,c=new Float32Array(n);
+  for(var i=0;i<n;i++){var x=i*2/n-1;c[i]=(Math.PI+a)*x/(Math.PI+a*Math.abs(x));}
+  return c;
+}
+function makeIR(ac,dur,dec){
+  var sr=ac.sampleRate,len=Math.ceil(sr*dur),buf=ac.createBuffer(2,len,sr);
+  for(var c=0;c<2;c++){var d=buf.getChannelData(c);for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,dec);}
+  return buf;
+}
+function makeHallIR(ac){
+  var sr=ac.sampleRate,dur=5.5,len=Math.ceil(sr*dur),buf=ac.createBuffer(2,len,sr);
+  for(var c=0;c<2;c++){var d=buf.getChannelData(c);for(var i=0;i<len;i++){var t=i/sr;d[i]=(Math.random()*2-1)*Math.pow(1-t/dur,0.3)*(t<0.04?t/0.04:1);}}
+  return buf;
+}
+
+var _vsIdx=0;
+async function loadAudio(){
+  var loaded=0;
+  // Load from curated list
+  for(var i=0;i<IA_AUDIO_IDS.length&&loaded<10;i++){
+    try{var u=await getAudioURL(IA_AUDIO_IDS[i]);if(u){launchStream(u,loaded);loaded++;}}catch(e){}
+    await wait(150);
+  }
+  // Search-based extras
+  var searches=[
+    // Horror radio / nightmare ambience
+    'subject:(horror)+mediatype:audio+format:MP3',
+    'subject:(suspense+mystery)+collection:(oldtimeradio)',
+    // Televangelists / apocalyptic sermons
+    'subject:(evangelical+revival)+mediatype:audio',
+    'subject:(prophecy+apocalypse)+mediatype:audio',
+    'collection:(oldtimeradio)+subject:(religious+sermon)',
+    // True crime / serial killer confessions (documentary audio)
+    'subject:(true+crime)+mediatype:audio+format:MP3',
+    'subject:(serial+killer+documentary)+mediatype:audio',
+    'subject:(crime+confession)+mediatype:audio',
+    // Sexual / erotic spoken word (adult content, legal)
+    'subject:(erotic+audio)+mediatype:audio+format:MP3',
+    'subject:(spoken+word+adult)+mediatype:audio',
+    // Screaming / horror sounds
+    'subject:(screaming+horror)+mediatype:audio',
+    'subject:(sound+effects+horror)+mediatype:audio+format:MP3',
+    // Dark ambient / noise
+    'subject:(dark+ambient)+mediatype:audio+format:MP3',
+    'subject:(noise+drone)+mediatype:audio+format:MP3',
+    // Shortwave / numbers stations
+    'subject:(shortwave+numbers)+mediatype:audio',
+    'subject:(experimental+noise)+mediatype:audio+format:MP3',
+  ];
+  for(var j=0;j<searches.length&&loaded<16;j++){
+    try{
+      var id=await searchIA(searches[j],'audio');
+      if(id){var u2=await getAudioURL(id);if(u2){launchStream(u2,loaded);loaded++;}}
+    }catch(e){}
+    await wait(200);
+  }
+  scheduleVolume();
+}
+async function searchIA(q,type){
+  var url='https://archive.org/advancedsearch.php?q='+encodeURIComponent(q)+
+          '&fl[]=identifier&rows=8&start='+Math.floor(Math.random()*50)+'&output=json';
+  var r=await fetch(url); var d=await r.json();
+  var docs=(d.response&&d.response.docs)||[];
+  if(!docs.length) return null;
+  return docs[0|Math.random()*docs.length].identifier;
+}
+async function getAudioURL(id){
+  try{
+    // Try /files endpoint first (returns {result:[...]})
+    var r=await fetch('https://archive.org/metadata/'+id+'/files');
+    var d=await r.json();
+    var files=d.result||d.files||[];
+    // Find audio file - prefer shorter files to load faster
+    var audioFiles=files.filter(function(x){return x.name&&/\.(mp3|ogg|flac)$/i.test(x.name);});
+    if(!audioFiles.length){
+      // Fall back to full metadata
+      var r2=await fetch('https://archive.org/metadata/'+id);
+      var d2=await r2.json(); audioFiles=(d2.files||[]).filter(function(x){return x.name&&/\.(mp3|ogg)$/i.test(x.name);});
+    }
+    if(!audioFiles.length) return null;
+    // Pick a random audio file from the item
+    var f=audioFiles[0|Math.random()*audioFiles.length];
+    return 'https://archive.org/download/'+id+'/'+f.name.replace(/ /g,'%20');
+  }catch(e){return null;}
+}
+function launchStream(url,idx){
+  if(!AC) return;
+  try{
+    var el=new Audio();
+    el.src=url; el.crossOrigin='anonymous';
+    el.loop=true; el.volume=1;
+    el.playbackRate=0.3+Math.random()*1.2;
+    el.play().catch(function(){});
+    var src=AC.createMediaElementSource(el);
+    var gain=AC.createGain(); gain.gain.value=0.03+Math.random()*0.06;
+    src.connect(gain); gain.connect(_masterDistort);
+    audioNodes.push({el:el,gain:gain,idx:idx});
+    // Pitch wobble
+    var ws=0.006+Math.random()*0.02, wd=0.04+Math.random()*0.12, wp=Math.random()*Math.PI*2;
+    (function w(){
+      el.playbackRate=(0.3+idx*0.07)+Math.sin(Date.now()*0.001*ws+wp)*wd;
+      setTimeout(w,400+Math.random()*600);
+    })();
+  }catch(e){console.warn('stream failed:',url);}
+}
+function scheduleVolume(){
+  if(!audioNodes.length) return;
+  function shift(){
+    _dominantIdx=0|Math.random()*audioNodes.length;
+    audioNodes.forEach(function(n,i){
+      var t=i===_dominantIdx?(0.28+Math.random()*0.42):(Math.random()>0.6?0.05+Math.random()*0.1:0.003+Math.random()*0.02);
+      if(n.gain&&AC) n.gain.gain.linearRampToValueAtTime(t,AC.currentTime+2+Math.random()*5);
+    });
+    setTimeout(shift,(5+Math.random()*80)*1000);
+  }
+  shift();
+}
+
+// ════════════════════════════════════════════════════════════════
+// VOICE with hall reverb
+// ════════════════════════════════════════════════════════════════
+function startVoice(){
+  if(!window.speechSynthesis) return;
+  setTimeout(speak,4000);
+}
+function speak(){
+  var phrase=ENTROPY.gen();
+  if(!_voiceActive) doSpeak(phrase);
+  setTimeout(speak,(18+Math.random()*22)*1000); // ~20-40s (2x frequency)
+}
+// Captured speech buffer for pitch-down duplicate
+var _capturedSpeech = null;
+var _mediaRecorder = null;
+var _recordChunks = [];
+
+function doSpeak(phrase){
+  if(!window.speechSynthesis||_voiceActive) return;
+  _voiceActive=true;
+
+  var u=new SpeechSynthesisUtterance(phrase);
+  u.rate=0.20+Math.random()*0.12;
+  u.pitch=0.07+Math.random()*0.10;
+  u.volume=1.0;
+  var vs=window.speechSynthesis.getVoices();
+  var dv=vs.find(function(v){return/male|david|alex|daniel|jorge/i.test(v.name);})||vs[0];
+  if(dv) u.voice=dv;
+
+  var zi=Math.random()>0.45?(0.25+Math.random()*0.65):0;
+  displayText(phrase,zi);
+
+  // Hall reverb routing + capture for pitch-down duplicate
+  try{
+    var dest=AC.createMediaStreamDestination();
+    var vsrc=AC.createMediaStreamSource(dest.stream);
+    var vrev=AC.createConvolver(); vrev.buffer=makeHallIR(AC);
+    var vgain=AC.createGain(); vgain.gain.value=0.9;
+    var vdist=AC.createWaveShaper(); vdist.curve=makeDistCurve(35);
+    vsrc.connect(vdist); vdist.connect(vrev); vrev.connect(vgain); vgain.connect(_voiceDestGain);
+    u.output=dest;
+
+    // Record the stream for pitch-down replay
+    try{
+      _recordChunks=[];
+      _mediaRecorder=new MediaRecorder(dest.stream);
+      _mediaRecorder.ondataavailable=function(e){ if(e.data.size>0) _recordChunks.push(e.data); };
+      _mediaRecorder.onstop=function(){
+        var blob=new Blob(_recordChunks,{type:'audio/webm'});
+        var burl=URL.createObjectURL(blob);
+        playPitchDownCopy(burl);
+      };
+      _mediaRecorder.start();
+    }catch(e){}
+  }catch(e){}
+
+  u.onend=function(){
+    _voiceActive=false;
+    try{ if(_mediaRecorder&&_mediaRecorder.state==='recording') _mediaRecorder.stop(); }catch(e){}
+  };
+  u.onerror=function(){
+    _voiceActive=false;
+    try{ if(_mediaRecorder&&_mediaRecorder.state==='recording') _mediaRecorder.stop(); }catch(e){}
+  };
+  window.speechSynthesis.speak(u);
+}
+
+function playPitchDownCopy(blobUrl){
+  // -4 octaves = playback rate of 1/16 (2^4 = 16)
+  // We play at 1/16 speed after a short delay
+  try{
+    var el=new Audio(blobUrl);
+    el.crossOrigin='anonymous';
+    el.playbackRate=0.0625; // 1/16 = -4 octaves
+    el.volume=1.0;
+    // Route through AudioContext: deep reverb + slight distort
+    var src=AC.createMediaElementSource(el);
+    var deepRev=AC.createConvolver(); deepRev.buffer=makeHallIR(AC);
+    var deepGain=AC.createGain(); deepGain.gain.value=0.65;
+    var deepDist=AC.createWaveShaper(); deepDist.curve=makeDistCurve(80);
+    src.connect(deepDist); deepDist.connect(deepRev); deepRev.connect(deepGain); deepGain.connect(_masterGain);
+    el.onended=function(){ try{URL.revokeObjectURL(blobUrl);}catch(e){} };
+    // Start with a slight delay so it doesn't overlap the normal voice start
+    setTimeout(function(){ el.play().catch(function(){}); }, 800);
+  }catch(e){ console.warn('pitch-down failed:',e); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// VIDEO — 9 slots, real IA IDs
+// ════════════════════════════════════════════════════════════════
+var _vsearchIdx=0;
+
+// ════════════════════════════════════════════════════════════════
+// GITHUB ASSET LOADER — auto-discovers files from repo on each load
+// ════════════════════════════════════════════════════════════════
+var GH_REPO = 'matronthorn/Horror-assets';
+var GH_BRANCH = 'main';
+var GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
+var GH_RAW = 'https://raw.githubusercontent.com/' + GH_REPO + '/' + GH_BRANCH + '/';
+
+var _ghVideos = [];    // video URLs discovered from repo
+var _ghImages = [];    // image URLs discovered from repo
+var _ghLoaded = false;
+
+async function loadGithubAssets(path) {
+  // Recursively fetch file list from GitHub Contents API
+  // Works for flat repos and subdirectories
+  path = path || '';
+  var videos = [], images = [];
+  try {
+    var resp = await fetch(GH_API + path + '?ref=' + GH_BRANCH, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
+    var items = await resp.json();
+    if (!Array.isArray(items)) return { videos:[], images:[] };
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      if (item.type === 'dir') {
+        // Recurse into subdirectories
+        var sub = await loadGithubAssets(item.path + '/');
+        videos = videos.concat(sub.videos);
+        images = images.concat(sub.images);
+      } else if (item.type === 'file') {
+        var name = item.name.toLowerCase();
+        var rawUrl = GH_RAW + item.path;
+        if (/\.(mp4|webm|mov|avi|mkv)$/.test(name)) {
+          videos.push(rawUrl);
+        } else if (/\.(jpg|jpeg|png|gif|webp)$/.test(name)) {
+          images.push(rawUrl);
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('GitHub asset load failed:', e.message);
+  }
+  return { videos: videos, images: images };
+}
+
+async function initGithubAssets() {
+  var assets = await loadGithubAssets();
+  _ghVideos = assets.videos;
+  _ghImages = assets.images;
+  _ghLoaded = true;
+  console.log('[Hell Void] GitHub assets:', _ghVideos.length, 'videos,', _ghImages.length, 'images');
+
+  // Immediately load GitHub videos into some slots
+  if (_ghVideos.length > 0) {
+    // Replace 3 random slots with GitHub content immediately
+    var slots = _videoSlots.slice().sort(function(){ return Math.random()-0.5; }).slice(0,3);
+    slots.forEach(function(slot) { loadGithubVideoInSlot(slot); });
+  }
+
+  // Add GitHub images to drift layer
+  if (_ghImages.length > 0) {
+    var toAdd = Math.min(_ghImages.length, 6);
+    for (var i = 0; i < toAdd; i++) {
+      addImg(_ghImages[0|Math.random()*_ghImages.length]);
+    }
+  }
+}
+
+function loadGithubVideoInSlot(slot) {
+  if (!_ghVideos.length) return;
+  var url = _ghVideos[0|Math.random()*_ghVideos.length];
+  slot.innerHTML = '';
+
+  var video = document.createElement('video');
+  video.src = url;
+  video.autoplay = true;
+  video.loop = true;
+  video.muted = true; // required for Chrome autoplay
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  // Random slow playback for dreamlike quality
+  video.playbackRate = 0.25 + Math.random() * 0.65;
+
+  video.style.cssText = [
+    'position:absolute',
+    'width:210%','height:210%',
+    'top:-55%','left:-55%',
+    'object-fit:cover',
+    'pointer-events:none',
+    'opacity:0',
+    'transition:opacity 4s ease',
+  ].join(';');
+
+  video.oncanplay = function() {
+    setTimeout(function(){ video.style.opacity = '1'; }, 300);
+    video.play().catch(function(){});
+  };
+
+  // Force visible after 5s regardless
+  setTimeout(function(){ video.style.opacity = '1'; }, 5000);
+
+  slot.appendChild(video);
+}
+
+// ── MODIFY loadVideo to mix in GitHub content ─────────────────
+// About 35% of slots use GitHub videos when available
+var _origLoadVideo = null; // store reference to patch below
+
+function initVideo(){
+  var layer=document.getElementById('videoLayer');
+  var blends=['normal','screen','overlay','hard-light','multiply','difference'];
+  for(var i=0;i<9;i++){
+    var div=document.createElement('div');
+    div.className='vframe';
+    div.style.opacity=(0.35+Math.random()*0.55).toString();
+    div.style.filter='contrast('+(1.3+Math.random()*1.4)+') brightness('+(0.25+Math.random()*0.55)+') saturate('+(0.4+Math.random()*1.8)+')';
+    div.style.mixBlendMode=blends[0|Math.random()*blends.length];
+    div.style.transform='scale('+(1.15+Math.random()*0.5)+') rotate('+(Math.random()*6-3)+'deg)';
+    layer.appendChild(div);
+    _videoSlots.push(div);
+    loadVideo(div);
+  }
+  // Load GitHub assets (auto-discovers repo contents)
+  initGithubAssets();
+  setInterval(function(){
+    var i=0|Math.random()*_videoSlots.length;loadVideo(_videoSlots[i]);
+  },20000);
+  setInterval(function(){
+    var i=0|Math.random()*_videoSlots.length;loadVideo(_videoSlots[i]);
+  },31000);
+  // Dedicated GitHub slot refresh — always shows latest repo content
+  setInterval(function(){
+    if(_ghVideos.length>0){
+      var i=0|Math.random()*_videoSlots.length;
+      loadGithubVideoInSlot(_videoSlots[i]);
+    }
+  },25000);;
+}
+async function loadVideo(slot){
+  // 35% chance: use GitHub video if available
+  if(_ghLoaded && _ghVideos.length > 0 && Math.random() < 0.35){
+    loadGithubVideoInSlot(slot);
+    return;
+  }
+  var id;
+  if(Math.random()>0.35){
+    id=IA_VIDEO_IDS[0|Math.random()*IA_VIDEO_IDS.length];
+  }else{
+    var qs=['subject:(psychiatric+hospital)+mediatype:movies',
+            'subject:(evangelical+revival)+mediatype:movies',
+            'subject:(surgery+medical+educational)+mediatype:movies',
+            'subject:(atomic+nuclear+war)+mediatype:movies',
+            'subject:(horror)+mediatype:movies+year:[1920+TO+1975]',
+            'collection:(prelinger)+mediatype:movies',
+            'subject:(exploitation+film)+mediatype:movies',
+            'subject:(propaganda)+mediatype:movies'];
+    try{id=await searchIA(qs[(_vsearchIdx++)%qs.length],'movies');}catch(e){}
+    if(!id) id=IA_VIDEO_IDS[0|Math.random()*IA_VIDEO_IDS.length];
+  }
+  slot.innerHTML='';
+  var f=document.createElement('iframe');
+  f.src='https://archive.org/embed/'+id+'?autoplay=1&start='+Math.floor(Math.random()*500);
+  f.setAttribute('allow','autoplay; fullscreen');
+  f.setAttribute('frameborder','0');
+  f.setAttribute('scrolling','no');
+  f.style.cssText='position:absolute;width:210%;height:210%;top:-55%;left:-55%;border:none;pointer-events:none;opacity:0;transition:opacity 5s ease;';
+  // Start invisible
+  f.style.opacity='0';
+  f.style.transition='opacity 6s ease';
+  // Force visible after 8s regardless of onload (IA embeds are unreliable)
+  var forceTimer = setTimeout(function(){ f.style.opacity='1'; }, 8000);
+  f.onload=function(){
+    clearTimeout(forceTimer);
+    setTimeout(function(){ f.style.opacity='1'; }, 500);
+  };
+  slot.appendChild(f);
+}
+
+// ════════════════════════════════════════════════════════════════
+// IMAGES — anatomical / figure / medical
+// ════════════════════════════════════════════════════════════════
+function initImages(){
+  _imageLayer=document.getElementById('imageLayer');
+  loadImages();
+  setInterval(loadImages,10000);
+  requestAnimationFrame(animImages);
+}
+async function loadImages(){
+  var cat=WIKI_CATS[0|Math.random()*WIKI_CATS.length];
+  try{
+    var url='https://commons.wikimedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:'+encodeURIComponent(cat)+'&cmlimit=20&cmtype=file&format=json&origin=*';
+    var r=await fetch(url); var d=await r.json();
+    var ms=(d.query&&d.query.categorymembers)||[];
+    if(!ms.length) return;
+    var titles=ms.slice(0,8).map(function(m){return m.title;}).join('|');
+    var ir=await fetch('https://commons.wikimedia.org/w/api.php?action=query&titles='+encodeURIComponent(titles)+'&prop=imageinfo&iiprop=url&iiurlwidth=700&format=json&origin=*');
+    var id=await ir.json();
+    Object.values((id.query&&id.query.pages)||{}).forEach(function(p){
+      var info=p.imageinfo&&p.imageinfo[0];
+      if(info&&info.thumburl) addImg(info.thumburl);
+    });
+  }catch(e){}
+}
+function addImg(src){
+  var img=new Image(); img.crossOrigin='anonymous';
+  img.onload=function(){
+    var el=document.createElement('img');
+    el.src=src;
+    var sz=150+Math.random()*400;
+    var blends=['screen','overlay','hard-light','color-dodge','lighten','difference'];
+    el.style.cssText=[
+      'position:absolute','width:'+sz+'px',
+      'left:'+(Math.random()*90+5)+'%',
+      'top:'+(Math.random()*90+5)+'%',
+      'transform:translate(-50%,-50%) rotate('+(Math.random()*40-20)+'deg)',
+      'mix-blend-mode:'+blends[0|Math.random()*blends.length],
+      'opacity:0','transition:opacity 3s ease','pointer-events:none',
+      'filter:contrast('+(1.4+Math.random()*0.9)+') brightness('+(0.45+Math.random()*0.65)+') saturate('+(0.2+Math.random()*1.2)+')',
+    ].join(';');
+    _imageLayer.appendChild(el);
+    var base=0.20+Math.random()*0.38;
+    _driftImages.push({
+      el:el,vx:(Math.random()-0.5)*0.02,vy:(Math.random()-0.5)*0.02,
+      x:parseFloat(el.style.left),y:parseFloat(el.style.top),
+      base:base,life:18000+Math.random()*35000,born:Date.now()
+    });
+    setTimeout(function(){el.style.opacity=base.toString();},300);
+    if(_driftImages.length>35){
+      var old=_driftImages.shift();
+      old.el.style.opacity='0';
+      setTimeout(function(){try{old.el.parentNode.removeChild(old.el);}catch(e){}},4000);
+    }
+  };
+  img.src=src;
+}
+function animImages(){
+  var now=Date.now();
+  var pulse=(Math.sin(_organicPulse*0.75)+1)/2;
+  _driftImages.forEach(function(d){
+    d.x+=d.vx; d.y+=d.vy;
+    if(d.x<3){d.x=3;d.vx=Math.abs(d.vx);}
+    if(d.x>97){d.x=97;d.vx=-Math.abs(d.vx);}
+    if(d.y<3){d.y=3;d.vy=Math.abs(d.vy);}
+    if(d.y>97){d.y=97;d.vy=-Math.abs(d.vy);}
+    d.el.style.left=d.x+'%'; d.el.style.top=d.y+'%';
+    var age=now-d.born;
+    var lf=age>d.life-6000?Math.max(0,(d.life-age)/6000):1;
+    // Pulsating throb — tied to organic pulse
+    var throb=d.base*(0.55+pulse*0.45)*lf;
+    d.el.style.opacity=throb.toString();
+    // Scale throb
+    var sc=1.0+Math.sin(_organicPulse*1.1+d.born*0.00008)*0.10;
+    d.el.style.transform=d.el.style.transform.replace(/\s*scale\([^)]+\)/,'')
+      +' scale('+sc+')';
+  });
+  requestAnimationFrame(animImages);
+}
+
+// ════════════════════════════════════════════════════════════════
+// ORGANIC PULSE — drives pulsating throb throughout
+// ════════════════════════════════════════════════════════════════
+function startOrganicPulse(){
+  function tick(){
+    _organicPulse+=0.016+Math.sin(_organicPulse*0.07)*0.006;
+    // Video layer filter pulse
+    var vl=document.getElementById('videoLayer');
+    if(vl){
+      var vp=(Math.sin(_organicPulse*0.55)+1)/2;
+      vl.style.filter='brightness('+(0.5+vp*0.5)+') saturate('+(1+vp*1.2)+') contrast('+(1+vp*0.4)+')';
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// ════════════════════════════════════════════════════════════════
+// VOID CANVAS
+// ════════════════════════════════════════════════════════════════
+function initVoidCanvas(){
+  var c=document.getElementById('voidCanvas');
+  _voidCtx=c.getContext('2d');
+  c.width=window.innerWidth; c.height=window.innerHeight;
+  window.addEventListener('resize',function(){c.width=window.innerWidth;c.height=window.innerHeight;});
+  (function av(){drawVoid();requestAnimationFrame(av);})();
+}
+function drawVoid(){
+  if(!_voidCtx) return;
+  var W=window.innerWidth,H=window.innerHeight,cx=W/2,cy=H/2;
+  var maxR=Math.max(W,H)*0.76;
+  _voidCtx.clearRect(0,0,W,H);
+  // Primary void
+  var g=_voidCtx.createRadialGradient(cx,cy,0,cx,cy,maxR);
+  g.addColorStop(0,'rgba(0,0,0,1)');
+  g.addColorStop(0.22,'rgba(0,0,0,0.99)');
+  g.addColorStop(0.28,'rgba(0,0,0,0.97)');
+  g.addColorStop(0.34,'rgba(0,0,0,0.88)');
+  g.addColorStop(0.42,'rgba(0,0,0,0.62)');
+  g.addColorStop(0.52,'rgba(0,0,0,0.35)');
+  g.addColorStop(0.65,'rgba(0,0,0,0.14)');
+  g.addColorStop(0.82,'rgba(0,0,0,0.04)');
+  g.addColorStop(1.0,'rgba(0,0,0,0)');
+  _voidCtx.fillStyle=g; _voidCtx.fillRect(0,0,W,H);
+  // Pulsing dark ring at void boundary
+  var rr=Math.min(W,H)*(0.30+Math.sin(_organicPulse*0.65)*0.035);
+  var rg=_voidCtx.createRadialGradient(cx,cy,rr*0.65,cx,cy,rr*1.2);
+  var ra=0.25+Math.sin(_organicPulse*1.4)*0.18;
+  rg.addColorStop(0,'rgba(50,0,0,0)');
+  rg.addColorStop(0.5,'rgba(30,0,0,'+ra+')');
+  rg.addColorStop(1,'rgba(0,0,0,0)');
+  _voidCtx.fillStyle=rg; _voidCtx.fillRect(0,0,W,H);
+  // Edge vignette
+  var eg=_voidCtx.createRadialGradient(cx,cy,maxR*0.5,cx,cy,maxR);
+  eg.addColorStop(0,'rgba(0,0,0,0)');
+  eg.addColorStop(1,'rgba(0,0,0,0.80)');
+  _voidCtx.fillStyle=eg; _voidCtx.fillRect(0,0,W,H);
+}
+
+// ════════════════════════════════════════════════════════════════
+// NOISE
+// ════════════════════════════════════════════════════════════════
+function initNoiseCanvas(){
+  var c=document.getElementById('noiseCanvas');
+  _noiseCtx=c.getContext('2d');
+  c.width=window.innerWidth; c.height=window.innerHeight;
+  window.addEventListener('resize',function(){c.width=window.innerWidth;c.height=window.innerHeight;});
+  (function n(){
+    var W=c.width,H=c.height,d=_noiseCtx.createImageData(W,H),p=d.data;
+    for(var i=0;i<p.length;i+=4){var v=Math.random()*255|0;p[i]=p[i+1]=p[i+2]=v;p[i+3]=255;}
+    _noiseCtx.putImageData(d,0,0);
+    setTimeout(n,55);
+  })();
+}
+
+// ════════════════════════════════════════════════════════════════
+// TEXT — Zalgo + type-on
+// ════════════════════════════════════════════════════════════════
+var ZU_='̍̎̄̅̿̑̆̐͒͗͑̇̈̊͂̓̈͊͋͌̃̂̌͐̀́̋̏̒'.split('');
+var ZM_='̴̵̶̸̷̡̢̧̨̛̀́̕͘͜͟͢͝͞͠͡'.split('');
+var ZD_='̖̗̘̙̜̝̞̟̠̤̥̦̩̪̫̬̭̮̯̰̱̲̳̹̺̻̼͇͈͉͍͎͓͔͕͖͙͚ͅ'.split('');
+function zg(txt,a){
+  if(!a||a<=0) return txt;
+  var r='';
+  for(var i=0;i<txt.length;i++){
+    r+=txt[i];
+    for(var u=0|Math.random()*a*8;u--;) r+=ZU_[0|Math.random()*ZU_.length];
+    if(Math.random()<a*0.5) r+=ZM_[0|Math.random()*ZM_.length];
+    for(var d=0|Math.random()*a*6;d--;) r+=ZD_[0|Math.random()*ZD_.length];
+  }
+  return r;
+}
+function initText(){_textEl=document.getElementById('voidText');}
+function displayText(phrase,zi){
+  if(!_textEl) return;
+  clearTimeout(_typeTimer);
+  _textEl.innerHTML='';
+  var words=phrase.split(' ');
+  var disp=words.map(function(w){return zi>0&&Math.random()>0.35?zg(w,zi):w;}).join(' ');
+  var chars=disp.split('');
+  var delay_=0;
+  chars.forEach(function(ch){
+    var s=document.createElement('span');
+    s.textContent=ch; _textEl.appendChild(s);
+    delay_+=40+Math.random()*80;
+    (function(sp,d){setTimeout(function(){sp.style.opacity='1';},d);})(s,delay_);
+  });
+  _typeTimer=setTimeout(function(){
+    _textEl.querySelectorAll('span').forEach(function(s){s.style.opacity='0';});
+    setTimeout(function(){if(_textEl)_textEl.innerHTML='';},1200);
+  },delay_+5000);
+}
+
+// ════════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════════
+function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
+if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=function(){window.speechSynthesis.getVoices();};
+document.addEventListener('contextmenu',function(e){e.preventDefault();});
+document.addEventListener('selectstart',function(e){e.preventDefault();});
+document.addEventListener('keydown',function(e){
+  if(e.key==='f'||e.key==='F'){try{document.documentElement.requestFullscreen();}catch(err){}}
+});
+</script>
+</body>
+</html>
