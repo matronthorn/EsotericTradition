@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Parish Publisher</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --ink:#070a0f;
+  --ink2:#0c1018;
+  --blue:rgba(90,144,200,0.85);
+  --blue-dim:rgba(90,144,200,0.45);
+  --blue-vdim:rgba(80,140,200,0.18);
+  --text:rgba(220,230,245,0.88);
+  --text-dim:rgba(160,175,200,0.7);
+  --border:rgba(80,140,200,0.18);
+  --font:'Cinzel','Palatino Linotype',Georgia,serif;
+  --font-body:'IM Fell English','Palatino Linotype',Georgia,serif;
+}
+html,body{
+  width:100%;min-height:100%;
+  background:var(--ink);
+  color:var(--text);
+  font-family:var(--font);
+}
+
+/* ── HEADER ── */
+header{
+  background:rgba(7,10,15,0.96);
+  border-bottom:1px solid var(--border);
+  padding:1rem 1.5rem;
+  display:flex;align-items:center;gap:1rem;
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:blur(8px);
+}
+header h1{
+  font-size:clamp(0.5rem,1.3vw,0.75rem);
+  letter-spacing:0.5em;
+  text-transform:uppercase;
+  color:var(--blue);
+  flex:1;
+}
+#status-bar{
+  font-size:clamp(0.3rem,0.7vw,0.44rem);
+  letter-spacing:0.15em;
+  color:var(--blue-dim);
+  text-align:right;
+  line-height:1.7;
+}
+
+/* ── MAIN LAYOUT ── */
+main{
+  max-width:780px;
+  margin:0 auto;
+  padding:2rem 1.5rem 4rem;
+  display:flex;
+  flex-direction:column;
+  gap:2rem;
+}
+
+/* ── SECTION BLOCKS ── */
+.block{
+  border:1px solid var(--border);
+  padding:1.4rem 1.5rem;
+  position:relative;
+  background:rgba(10,14,20,0.5);
+}
+.block-title{
+  position:absolute;
+  top:-0.55rem;left:1rem;
+  background:var(--ink);
+  padding:0 0.5rem;
+  font-size:clamp(0.28rem,0.65vw,0.4rem);
+  letter-spacing:0.3em;
+  color:var(--blue-dim);
+  text-transform:uppercase;
+}
+
+/* ── FORM ELEMENTS ── */
+label{
+  display:block;
+  font-size:clamp(0.3rem,0.7vw,0.44rem);
+  letter-spacing:0.22em;
+  color:var(--blue-dim);
+  text-transform:uppercase;
+  margin-bottom:0.4rem;
+  margin-top:1rem;
+}
+label:first-child{margin-top:0;}
+
+input[type=text],input[type=password],input[type=date],
+select,textarea{
+  width:100%;
+  background:rgba(12,16,24,0.8);
+  border:1px solid var(--border);
+  border-radius:0;
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:clamp(0.55rem,1.2vw,0.72rem);
+  letter-spacing:0.04em;
+  padding:0.6rem 0.75rem;
+  outline:none;
+  transition:border-color 0.3s;
+  -webkit-appearance:none;
+}
+input:focus,textarea:focus,select:focus{
+  border-color:var(--blue-dim);
+}
+input::placeholder,textarea::placeholder{
+  color:rgba(80,100,130,0.5);
+  font-style:italic;
+}
+textarea{
+  resize:vertical;
+  min-height:180px;
+  line-height:1.9;
+  font-style:italic;
+}
+select option{background:#0c1018;}
+
+/* ── IMAGE ATTACHMENTS ── */
+#image-area{
+  display:flex;
+  flex-direction:column;
+  gap:0.8rem;
+}
+.img-row{
+  display:flex;
+  gap:0.6rem;
+  align-items:center;
+}
+.img-preview{
+  width:64px;height:64px;
+  object-fit:cover;
+  border:1px solid var(--border);
+  flex-shrink:0;
+}
+.img-info{
+  flex:1;
+  font-size:clamp(0.3rem,0.65vw,0.4rem);
+  color:var(--text-dim);
+  letter-spacing:0.08em;
+  line-height:1.8;
+  font-family:var(--font-body);
+  font-style:italic;
+}
+.img-remove{
+  background:none;
+  border:1px solid rgba(160,40,30,0.3);
+  color:rgba(160,80,70,0.6);
+  font-family:var(--font);
+  font-size:clamp(0.25rem,0.55vw,0.35rem);
+  letter-spacing:0.18em;
+  padding:0.25em 0.6em;
+  cursor:pointer;
+  transition:all 0.25s;
+}
+.img-remove:hover{border-color:rgba(200,60,50,0.6);color:rgba(200,80,70,0.9);}
+
+.add-img-btn{
+  background:none;
+  border:1px dashed var(--blue-vdim);
+  color:var(--blue-dim);
+  font-family:var(--font);
+  font-size:clamp(0.3rem,0.7vw,0.44rem);
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  padding:0.6rem 1rem;
+  cursor:pointer;
+  transition:all 0.3s;
+  width:100%;
+}
+.add-img-btn:hover{border-color:var(--blue-dim);color:var(--blue);}
+#img-file-input{display:none;}
+
+/* ── PREVIEW ── */
+#preview-area{
+  background:rgba(7,10,15,0.9);
+  border:1px solid var(--blue-vdim);
+  padding:1.4rem 1.5rem;
+}
+#preview-area h3{
+  font-size:clamp(0.28rem,0.65vw,0.4rem);
+  letter-spacing:0.3em;
+  color:var(--blue-vdim);
+  text-transform:uppercase;
+  margin-bottom:1rem;
+}
+.preview-date{
+  font-size:clamp(0.28rem,0.6vw,0.38rem);
+  letter-spacing:0.35em;
+  color:var(--blue-dim);
+  margin-bottom:0.4rem;
+}
+.preview-headline{
+  font-size:clamp(0.7rem,1.8vw,1rem);
+  letter-spacing:0.1em;
+  color:var(--text);
+  opacity:0.88;
+  margin-bottom:0.6rem;
+  line-height:1.5;
+}
+.preview-body{
+  font-family:var(--font-body);
+  font-size:clamp(0.55rem,1.1vw,0.68rem);
+  line-height:2;
+  color:var(--text-dim);
+  letter-spacing:0.04em;
+  font-style:italic;
+  white-space:pre-wrap;
+}
+.preview-imgs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.6rem;
+  margin-top:0.8rem;
+}
+.preview-imgs img{
+  max-width:200px;
+  max-height:160px;
+  object-fit:cover;
+  border:1px solid var(--border);
+  opacity:0.88;
+}
+
+/* ── BUTTONS ── */
+.btn-row{
+  display:flex;
+  gap:0.8rem;
+  flex-wrap:wrap;
+}
+.btn{
+  font-family:var(--font);
+  font-size:clamp(0.32rem,0.75vw,0.48rem);
+  letter-spacing:0.38em;
+  text-transform:uppercase;
+  padding:0.75rem 1.6rem;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--blue-dim);
+  cursor:pointer;
+  transition:all 0.3s;
+}
+.btn:hover{
+  background:rgba(80,140,200,0.08);
+  border-color:var(--blue-dim);
+  color:var(--blue);
+}
+.btn-primary{
+  border-color:var(--blue-dim);
+  color:var(--blue);
+}
+.btn-primary:hover{
+  background:rgba(80,140,200,0.12);
+  border-color:var(--blue);
+  color:rgba(160,210,255,0.95);
+}
+.btn-danger{
+  border-color:rgba(160,40,30,0.25);
+  color:rgba(160,80,70,0.5);
+}
+.btn-danger:hover{
+  border-color:rgba(200,60,50,0.5);
+  color:rgba(200,80,70,0.8);
+  background:rgba(150,30,20,0.06);
+}
+.btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+/* ── CREDENTIALS ── */
+#creds-note{
+  font-size:clamp(0.28rem,0.62vw,0.38rem);
+  color:rgba(80,110,150,0.5);
+  letter-spacing:0.12em;
+  line-height:1.9;
+  font-family:var(--font-body);
+  font-style:italic;
+  margin-top:0.6rem;
+}
+
+/* ── EXISTING POSTS ── */
+.post-list{
+  display:flex;
+  flex-direction:column;
+  gap:0.5rem;
+}
+.post-item{
+  display:flex;
+  align-items:baseline;
+  gap:0.8rem;
+  padding:0.5rem 0.6rem;
+  border-bottom:1px solid var(--blue-vdim);
+}
+.post-item-date{
+  font-size:clamp(0.27rem,0.6vw,0.38rem);
+  letter-spacing:0.22em;
+  color:var(--blue-dim);
+  flex-shrink:0;
+  white-space:nowrap;
+}
+.post-item-headline{
+  flex:1;
+  font-size:clamp(0.35rem,0.8vw,0.5rem);
+  letter-spacing:0.06em;
+  color:var(--text-dim);
+}
+.post-item-del{
+  background:none;border:none;
+  color:rgba(140,60,50,0.4);
+  font-family:var(--font);
+  font-size:clamp(0.25rem,0.5vw,0.32rem);
+  letter-spacing:0.15em;
+  cursor:pointer;
+  transition:color 0.2s;
+  flex-shrink:0;
+}
+.post-item-del:hover{color:rgba(200,70,60,0.8);}
+
+#log{
+  font-size:clamp(0.28rem,0.6vw,0.38rem);
+  letter-spacing:0.1em;
+  color:var(--blue-dim);
+  line-height:2;
+  font-family:var(--font-body);
+  font-style:italic;
+  min-height:1.5em;
+}
+.log-ok{color:rgba(80,200,120,0.7);}
+.log-err{color:rgba(200,80,70,0.8);}
+
+.post-empty{font-size:clamp(0.3rem,0.65vw,0.42rem);color:rgba(80,100,130,0.5);letter-spacing:0.15em;font-style:italic;padding:0.5rem 0;}
+</style>
+
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Parish Publisher">
+<meta name="application-name" content="Parish Publisher">
+<meta name="theme-color" content="#070a0f">
+<link rel="manifest" href="data:application/json,{
+  &quot;name&quot;: &quot;Parish Publisher&quot;,
+  &quot;short_name&quot;: &quot;Publisher&quot;,
+  &quot;start_url&quot;: &quot;./ParishPublisher.html&quot;,
+  &quot;display&quot;: &quot;standalone&quot;,
+  &quot;background_color&quot;: &quot;#070a0f&quot;,
+  &quot;theme_color&quot;: &quot;#070a0f&quot;,
+  &quot;orientation&quot;: &quot;portrait&quot;,
+  &quot;icons&quot;: [{
+    &quot;src&quot;: &quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23070a0f'/><text y='75' font-size='70' text-anchor='middle' x='50'>✦</text></svg>&quot;,
+    &quot;sizes&quot;: &quot;any&quot;,
+    &quot;type&quot;: &quot;image/svg+xml&quot;
+  }]
+}">
+</head>
+<body>
+
+<header>
+  <h1>Parish of Esoteric Tradition &nbsp;·&nbsp; News Publisher</h1>
+  <div id="status-bar">
+    <div>Repo: <span id="repo-display">—</span></div>
+    <div>Status: <span id="conn-status">Not connected</span></div>
+  </div>
+</header>
+
+<main>
+
+    <!-- CREDENTIALS -->
+  <div class="block">
+    <div class="block-title">GitHub Token</div>
+    <label>Personal Access Token <span id="token-status" style="font-size:0.85em;letter-spacing:0.1em;margin-left:0.5em;"></span></label>
+    <input type="password" id="gh-token" placeholder="ghp_..." autocomplete="off" oninput="onTokenInput()" />
+    <div class="btn-row" style="margin-top:1rem;">
+      <button class="btn btn-primary" onclick="saveToken()">Save Token</button>
+      <button class="btn btn-primary" onclick="loadPosts()">Connect</button>
+      <button class="btn" onclick="clearToken()">Clear</button>
+    </div>
+    <div id="creds-note">Token saved permanently in your browser. Only needed once per device.<br>Requires repo write scope on matronthorn/EsotericTradition.</div>
+  </div>
+
+  <!-- COMPOSE -->
+  <div class="block">
+    <div class="block-title">Compose Post</div>
+
+    <label>Date</label>
+    <input type="text" id="post-date" placeholder="March 2026" />
+
+    <label>Headline</label>
+    <input type="text" id="post-headline" placeholder="Headline..." />
+
+    <label>Body</label>
+    <textarea id="post-body" placeholder="Write your post here...&#10;&#10;Line breaks are preserved.&#10;HTML is supported — use &lt;br&gt;&lt;br&gt; for paragraph breaks."></textarea>
+
+    <label>Images</label>
+    <div id="image-area">
+      <button class="add-img-btn" onclick="document.getElementById('img-file-input').click()">
+        + Attach Images
+      </button>
+      <input type="file" id="img-file-input" accept="image/*" multiple
+        onchange="handleImages(this.files)" />
+    </div>
+
+    <div class="btn-row" style="margin-top:1.2rem;">
+      <button class="btn btn-primary" onclick="updatePreview()">Preview</button>
+      <button class="btn" onclick="clearCompose()">Clear</button>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div id="preview-area" style="display:none;">
+    <h3>Preview</h3>
+    <div class="preview-date" id="prev-date"></div>
+    <div class="preview-headline" id="prev-headline"></div>
+    <div class="preview-body" id="prev-body"></div>
+    <div class="preview-imgs" id="prev-imgs"></div>
+  </div>
+
+  <!-- PUBLISH -->
+  <div class="block">
+    <div class="block-title">Publish</div>
+    <p style="font-size:clamp(0.3rem,0.7vw,0.44rem);color:var(--text-dim);letter-spacing:0.1em;line-height:1.9;font-family:var(--font-body);font-style:italic;margin-bottom:1rem;">
+      Publishing prepends this post to the news section in your site's index.html on GitHub.<br>
+      Any images are committed to a <code style="font-style:normal;color:var(--blue-dim);">news-images/</code> folder and referenced inline.
+    </p>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="publish-btn" onclick="publishPost()" disabled>
+        Publish to Site
+      </button>
+    </div>
+    <div id="log" style="margin-top:1rem;"></div>
+  </div>
+
+  <!-- EXISTING POSTS -->
+  <div class="block">
+    <div class="block-title">Existing Posts</div>
+    <div id="post-list" class="post-list">
+      <div style="font-size:clamp(0.3rem,0.65vw,0.42rem);color:rgba(80,100,130,0.5);letter-spacing:0.15em;font-style:italic;">
+        Connect to load existing posts.
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+'use strict';
+
+var GH_REPO    = 'matronthorn/EsotericTradition';
+var GH_BRANCH  = 'main';
+var GH_INDEX   = 'index.html';
+var GH_IMGPATH = 'news-images';
+var NEWS_MARKER = '<div class="news-grid" id="main-news-grid">';
+var _token = '', _attached = [], _indexSHA = '';
+
+function loadToken() {
+  try { _token = localStorage.getItem('_pub_gh') || ''; } catch(e) {}
+  if (_token) { document.getElementById('gh-token').value = _token; setTokenStatus(true); }
+  else { setTokenStatus(false); }
+}
+function saveToken() {
+  var v = document.getElementById('gh-token').value.trim();
+  if (!v) { setLog('Enter a token first.', 'err'); return; }
+  _token = v;
+  try { localStorage.setItem('_pub_gh', _token); } catch(e) {}
+  setTokenStatus(true); setLog('Token saved.', 'ok');
+}
+function clearToken() {
+  try { localStorage.removeItem('_pub_gh'); } catch(e) {}
+  _token = ''; document.getElementById('gh-token').value = '';
+  setTokenStatus(false); setLog('Token cleared.', '');
+}
+function setTokenStatus(saved) {
+  var el = document.getElementById('token-status');
+  if (!el) return;
+  el.textContent = saved ? '\u2713 saved' : 'not saved';
+  el.style.color = saved ? 'rgba(80,200,120,0.7)' : 'rgba(180,100,80,0.5)';
+}
+function onTokenInput() {
+  var el = document.getElementById('token-status');
+  if (el) { el.textContent = 'unsaved'; el.style.color = 'rgba(200,160,80,0.6)'; }
+}
+
+async function ghFetch(path, opts) {
+  var r = await fetch('https://api.github.com/repos/' + GH_REPO + '/' + path,
+    Object.assign({ headers: {
+      'Authorization': 'token ' + _token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    }}, opts || {}));
+  if (!r.ok) {
+    var ed = {}; try { ed = await r.json(); } catch(x) {}
+    throw new Error(r.status + (ed.message ? ' - ' + ed.message : ''));
+  }
+  return r.json();
+}
+async function ghReadFile(path) {
+  var meta = await ghFetch('contents/' + path + '?ref=' + GH_BRANCH);
+  _indexSHA = meta.sha;
+  var blob = await ghFetch('git/blobs/' + meta.sha);
+  var b64  = blob.content.split('\n').join('');
+  var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
+  return new TextDecoder('utf-8').decode(bytes);
+}
+async function ghWriteFile(path, content, message, sha) {
+  var bytes  = new TextEncoder().encode(content);
+  var binary = Array.from(bytes).map(function(b) { return String.fromCharCode(b); }).join('');
+  var b64    = btoa(binary);
+  var body   = { message: message, content: b64, branch: GH_BRANCH };
+  if (sha) body.sha = sha;
+  return ghFetch('contents/' + path, { method: 'PUT', body: JSON.stringify(body) });
+}
+async function ghUploadImage(name, b64) {
+  var path = GH_IMGPATH + '/' + Date.now() + '_' + name;
+  var sha  = null;
+  try { sha = (await ghFetch('contents/' + path + '?ref=' + GH_BRANCH)).sha; } catch(x) {}
+  var body = { message: 'News image: ' + name, content: b64, branch: GH_BRANCH };
+  if (sha) body.sha = sha;
+  await ghFetch('contents/' + path, { method: 'PUT', body: JSON.stringify(body) });
+  return 'https://raw.githubusercontent.com/' + GH_REPO + '/' + GH_BRANCH + '/' + path;
+}
+
+function triggerImgPick() { document.getElementById('img-file-input').click(); }
+function handleImages(files) {
+  Array.from(files).forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      _attached.push({ name: file.name.replace(/[^a-zA-Z0-9._-]/g,'_').toLowerCase(),
+        b64: e.target.result.split(',')[1], dataURL: e.target.result, size: file.size });
+      renderImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('img-file-input').value = '';
+}
+function renderImages() {
+  var el = document.getElementById('image-area');
+  var rows = _attached.map(function(img, i) {
+    return '<div class="img-row">'
+      + '<img class="img-preview" src="' + img.dataURL + '">'
+      + '<div class="img-info">' + img.name + '<br>' + Math.round(img.size/1024) + ' KB</div>'
+      + '<button class="img-remove" onclick="removeImage(' + i + ')">Remove</button>'
+      + '</div>';
+  }).join('');
+  el.innerHTML = rows
+    + '<button class="add-img-btn" onclick="triggerImgPick()">+ Attach Images</button>'
+    + '<input type="file" id="img-file-input" accept="image/*" multiple onchange="handleImages(this.files)" style="display:none">';
+}
+function removeImage(i) { _attached.splice(i,1); renderImages(); }
+
+function updatePreview() {
+  var date = document.getElementById('post-date').value.trim();
+  var headline = document.getElementById('post-headline').value.trim();
+  var body = document.getElementById('post-body').value.trim();
+  if (!headline && !body) { setLog('Nothing to preview.','err'); return; }
+  document.getElementById('preview-area').style.display = 'block';
+  document.getElementById('prev-date').textContent = date || 'No date';
+  document.getElementById('prev-headline').textContent = headline;
+  document.getElementById('prev-body').innerHTML = (body||'').split('\n').join('<br>');
+  document.getElementById('prev-imgs').innerHTML = _attached.map(function(img) {
+    return '<img src="' + img.dataURL + '">';
+  }).join('');
+  document.getElementById('preview-area').scrollIntoView({behavior:'smooth'});
+}
+
+async function loadPosts() {
+  var tok = document.getElementById('gh-token').value.trim() || _token;
+  if (!tok) { setLog('Enter your GitHub token and tap Connect.','err'); return; }
+  _token = tok;
+  try { localStorage.setItem('_pub_gh', _token); setTokenStatus(true); } catch(x) {}
+  setStatus('Connecting...');
+  try {
+    var content = await ghReadFile(GH_INDEX);
+    parseAndRenderPosts(content);
+    setStatus('Connected - ' + GH_REPO);
+    document.getElementById('publish-btn').disabled = false;
+  } catch(e) {
+    setStatus(''); setLog('Connection failed: ' + e.message, 'err');
+  }
+}
+function parseAndRenderPosts(content) {
+  var items = [], pos = 0;
+  while (true) {
+    var s = content.indexOf('<div class="news-item">', pos);
+    if (s < 0) break;
+    var e = content.indexOf('</div>', s + 22);
+    if (e < 0) break;
+    var block = content.substring(s, e+6);
+    var dm = block.match(/<div class="news-date">([^<]*)<\/div>/);
+    var hm = block.match(/<div class="news-headline">([^<]*)<\/div>/);
+    items.push({ date: dm ? dm[1] : '-', headline: hm ? hm[1] : '(no headline)', s: s, e: e+6 });
+    pos = e + 6;
+  }
+  var el = document.getElementById('post-list');
+  if (!items.length) { el.innerHTML = '<div class="post-empty">No posts found.</div>'; return; }
+  el.innerHTML = items.map(function(p, i) {
+    return '<div class="post-item">'
+      + '<span class="post-item-date">' + p.date + '</span>'
+      + '<span class="post-item-headline">' + p.headline + '</span>'
+      + '<button class="post-item-del" onclick="deletePost(' + i + ')">Delete</button>'
+      + '</div>';
+  }).join('');
+}
+
+async function publishPost() {
+  var tok = document.getElementById('gh-token').value.trim() || _token;
+  if (!tok) { setLog('GitHub token required.','err'); return; }
+  _token = tok;
+  try { localStorage.setItem('_pub_gh', _token); setTokenStatus(true); } catch(x) {}
+  var date = document.getElementById('post-date').value.trim();
+  var headline = document.getElementById('post-headline').value.trim();
+  var body = document.getElementById('post-body').value;
+  if (!headline) { setLog('Headline is required.','err'); return; }
+  document.getElementById('publish-btn').disabled = true;
+  setLog('Publishing...');
+  try {
+    var imgHTML = '';
+    for (var i = 0; i < _attached.length; i++) {
+      setLog('Uploading image ' + (i+1) + '/' + _attached.length + '...');
+      var url = await ghUploadImage(_attached[i].name, _attached[i].b64);
+      imgHTML += '<br><img src="' + url + '" style="max-width:100%;margin:0.5rem 0;border:1px solid rgba(80,140,200,0.15);opacity:0.88;">';
+    }
+    setLog('Fetching site...');
+    var current = await ghReadFile(GH_INDEX);
+    if (current.indexOf(NEWS_MARKER) < 0) throw new Error('News section not found in index.html');
+    var bodyHTML = (body||'').split('\n').join('<br>') + imgHTML;
+    var esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var newItem = '\n<div class="news-item">\n'
+      + '  <div class="news-date">' + esc(date) + '</div>\n'
+      + '  <div class="news-headline">' + esc(headline) + '</div>\n'
+      + '  <div class="news-body">' + bodyHTML + '</div>\n'
+      + '</div>\n';
+    var updated = current.replace(NEWS_MARKER, NEWS_MARKER + newItem);
+    setLog('Saving to GitHub...');
+    await ghWriteFile(GH_INDEX, updated, 'News: ' + headline, _indexSHA);
+    setLog('Published: "' + headline + '"', 'ok');
+    clearCompose(); await loadPosts();
+  } catch(e) { setLog('Publish failed: ' + e.message, 'err'); }
+  document.getElementById('publish-btn').disabled = false;
+}
+
+async function deletePost(idx) {
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  setLog('Deleting...');
+  try {
+    var current = await ghReadFile(GH_INDEX);
+    var items = [], pos = 0;
+    while (true) {
+      var s = current.indexOf('<div class="news-item">', pos);
+      if (s < 0) break;
+      var e = current.indexOf('</div>', s + 22);
+      if (e < 0) break;
+      items.push({ s: s, e: e+6 }); pos = e+6;
+    }
+    if (idx >= items.length) throw new Error('Post not found');
+    var it = items[idx];
+    var updated = current.slice(0, it.s) + current.slice(it.e);
+    await ghWriteFile(GH_INDEX, updated, 'Delete news post', _indexSHA);
+    setLog('Post deleted.', 'ok'); await loadPosts();
+  } catch(e) { setLog('Delete failed: ' + e.message, 'err'); }
+}
+
+function setLog(msg, type) {
+  var el = document.getElementById('log');
+  el.className = type==='ok' ? 'log-ok' : type==='err' ? 'log-err' : '';
+  el.textContent = msg;
+}
+function setStatus(msg) { var el = document.getElementById('conn-status'); if(el) el.textContent = msg; }
+function clearCompose() {
+  document.getElementById('post-headline').value = '';
+  document.getElementById('post-body').value = '';
+  _attached = []; renderImages();
+  document.getElementById('preview-area').style.display = 'none';
+  var d = new Date();
+  var mo = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('post-date').value = mo[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+// ── PWA SERVICE WORKER ───────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  try {
+    var swCode = 'self.addEventListener("install",function(e){e.waitUntil(caches.open("parish-pub-v1").then(function(c){return c.addAll([location.pathname]);}));});self.addEventListener("fetch",function(e){e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request);}));});';
+    var swBlob = new Blob([swCode], {type:'text/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+  } catch(e) {}
+}
+
+loadToken(); renderImages(); if (_token) loadPosts();
+(function(){ var d=new Date(); var mo=['January','February','March','April','May','June','July','August','September','October','November','December']; document.getElementById('post-date').value=mo[d.getMonth()]+' '+d.getFullYear(); })();
+
+</script>
+</body>
+</html>
