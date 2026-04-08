@@ -1,0 +1,15 @@
+{
+  "name": "installation-pipeline",
+  "version": "1.0.0",
+  "description": "Image processing pipeline for Be Not Afraid installation",
+  "main": "process.js",
+  "scripts": {
+    "start": "node process.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "sharp": "^0.33.0",
+    "node-fetch": "^3.3.2",
+    "canvas": "^2.11.2"
+  }
+}
