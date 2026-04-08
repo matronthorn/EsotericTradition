@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>The Darkwander</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+body { background:#000; overflow:hidden; width:100vw; height:100vh; cursor:none; }
+canvas { display:block; touch-action:none; }
+
+#ui { position:fixed; inset:0; pointer-events:none; z-index:10; }
+
+#vignette {
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse at center,
+    transparent 28%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.85) 100%);
+  transition: opacity 3s ease;
+}
+#grain {
+  position:absolute; inset:0; opacity:0.032;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:256px 256px; animation:gs 0.12s steps(1) infinite;
+}
+@keyframes gs {
+  0%{background-position:0 0} 25%{background-position:-64px -32px}
+  50%{background-position:32px -64px} 75%{background-position:-32px 64px}
+  100%{background-position:64px 32px}
+}
+
+/* Fade overlay for reset and transitions */
+#fade-overlay {
+  position:absolute; inset:0; background:#000;
+  opacity:0; pointer-events:none;
+  transition: opacity 2.5s ease;
+  z-index:5;
+}
+#fade-overlay.active { opacity:1; }
+
+#glyph-msg {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  color:rgba(160,175,190,0);
+  font-family:'Palatino Linotype','Book Antiqua',Palatino,serif;
+  font-size:clamp(11px,1.8vw,16px); letter-spacing:0.45em;
+  text-transform:uppercase; text-align:center; pointer-events:none;
+  transition:color 2.5s ease-in-out;
+  text-shadow:0 0 30px rgba(140,165,190,0.5); max-width:55vw; line-height:2;
+  z-index:6;
+}
+#glyph-msg.visible { color:rgba(160,175,185,0.5); }
+
+#depth-indicator {
+  position:absolute; bottom:38px; left:50%; transform:translateX(-50%);
+  color:rgba(100,115,130,0.2);
+  font-family:'Palatino Linotype',serif; font-size:10px;
+  letter-spacing:0.7em; text-transform:uppercase;
+}
+
+/* Start screen */
+#start-screen {
+  position:fixed; inset:0; background:#000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:100; transition:opacity 2.5s ease; cursor:pointer;
+}
+#start-screen h1 {
+  font-family:'Palatino Linotype','Book Antiqua',Palatino,serif;
+  font-size:clamp(22px,5vw,50px); font-weight:400;
+  color:rgba(160,180,200,0.8); letter-spacing:0.55em;
+  text-transform:uppercase; text-align:center; margin-bottom:22px;
+  text-shadow:0 0 60px rgba(100,140,180,0.35);
+  animation:breathe 5s ease-in-out infinite;
+}
+#start-screen p {
+  font-family:'Palatino Linotype',serif; font-size:clamp(9px,1.4vw,12px);
+  color:rgba(100,120,140,0.45); letter-spacing:0.4em; text-transform:uppercase;
+  animation:breathe 5s ease-in-out infinite reverse;
+}
+@keyframes breathe { 0%,100%{opacity:0.5} 50%{opacity:1} }
+#start-screen.fade-out { opacity:0; pointer-events:none; }
+
+/* Mobile controls */
+#mobile-controls {
+  display:none; position:fixed; inset:0;
+  z-index:20; pointer-events:none;
+}
+#move-zone {
+  position:absolute; bottom:0; left:0; width:50%; height:220px;
+  pointer-events:all; touch-action:none;
+  display:flex; align-items:flex-end; justify-content:center; padding-bottom:30px;
+}
+#look-zone {
+  position:absolute; bottom:0; right:0; width:50%; height:220px;
+  pointer-events:all; touch-action:none;
+}
+.mob-btn {
+  position:absolute; border-radius:50%;
+  border:1px solid rgba(140,165,190,0.15); background:rgba(0,0,0,0.3);
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:all; touch-action:none;
+  color:rgba(140,165,190,0.3); font-size:18px; font-family:serif;
+}
+#btn-forward { width:72px; height:72px; bottom:80px; left:50%; transform:translateX(-50%); position:absolute; }
+#btn-left    { width:54px; height:54px; bottom:90px; left:calc(50% - 90px); position:absolute; }
+#btn-right   { width:54px; height:54px; bottom:90px; left:calc(50% + 36px); position:absolute; }
+#look-hint {
+  position:absolute; top:20px; right:20px;
+  color:rgba(100,120,140,0.25); font-family:'Palatino Linotype',serif;
+  font-size:9px; letter-spacing:0.3em; text-transform:uppercase;
+  pointer-events:none;
+}
+@media(max-width:900px){ #mobile-controls{display:block;} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <div id="vignette"></div>
+  <div id="grain"></div>
+  <div id="fade-overlay"></div>
+  <div id="glyph-msg"></div>
+  <div id="depth-indicator">∞</div>
+</div>
+
+<div id="start-screen">
+  <h1>The Darkwander</h1>
+  <p>touch to enter</p>
+</div>
+
+<div id="mobile-controls">
+  <div id="move-zone">
+    <div class="mob-btn" id="btn-forward">↑</div>
+    <div class="mob-btn" id="btn-left">←</div>
+    <div class="mob-btn" id="btn-right">→</div>
+  </div>
+  <div id="look-zone"></div>
+  <div id="look-hint">drag to look</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+// SONG TIMING  (all in seconds)
+// Total: 38:20 = 2300s
+// ═══════════════════════════════════════════════════════════
+const SONG_DURATION   = 2300;
+const TRANSITION_START= 1820; // 30:20 — lighting begins warming
+const SUNLIGHT_START  = 2120; // 35:20 — near-maximum brightness
+const WINDOW_START    = 2210; // 36:50 — window spawns ahead
+const DIRECT_SUN      = 2230; // 37:10 — maximum brightness
+const RESET_AT        = 2300; // 38:20 — fade to black, restart
+
+// ═══════════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════════
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+const bufs = {};
+let mainTrack = null, ambienceNode = null;
+let lastStepTime = 0;
+const STEP_INTERVAL = 0.50;
+const DRIP_NAMES = ['drip','drip2','drip3'];
+
+async function loadBuf(name, path) {
+  try {
+    const r = await fetch(path);
+    if (!r.ok) return;
+    const ab = await r.arrayBuffer();
+    bufs[name] = await audioCtx.decodeAudioData(ab);
+  } catch(e) { /* missing file — silent fallback */ }
+}
+
+function playShot(name, vol=1.0, pitchVar=0.05) {
+  if (!audioCtx || !bufs[name]) return;
+  const s = audioCtx.createBufferSource();
+  s.buffer = bufs[name];
+  s.playbackRate.value = 1 + (Math.random()-0.5)*pitchVar;
+  const g = audioCtx.createGain(); g.gain.value = vol;
+  s.connect(g); g.connect(audioCtx.destination); s.start();
+}
+
+function playDrip() {
+  const n = DRIP_NAMES[Math.floor(Math.random()*DRIP_NAMES.length)];
+  playShot(n, 0.28+Math.random()*0.35, 0.12);
+}
+
+async function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new AC();
+  await Promise.all([
+    loadBuf('step',    'audio/footstep.wav'),
+    loadBuf('drip',    'audio/drip.wav'),
+    loadBuf('drip2',   'audio/drip2.wav'),
+    loadBuf('drip3',   'audio/drip3.wav'),
+    loadBuf('ambience','audio/ambience.wav'),
+    loadBuf('main',    'audio/nightmareflesh.mp3'),
+  ]);
+  // Ambience — looping low rumble
+  if (bufs['ambience']) {
+    ambienceNode = audioCtx.createBufferSource();
+    ambienceNode.buffer = bufs['ambience'];
+    ambienceNode.loop = true;
+    const ag = audioCtx.createGain(); ag.gain.value = 0.4;
+    ambienceNode.connect(ag); ag.connect(audioCtx.destination);
+    ambienceNode.start();
+  }
+  // Main track
+  if (bufs['main']) {
+    mainTrack = audioCtx.createBufferSource();
+    mainTrack.buffer = bufs['main'];
+    mainTrack.loop = false;
+    const mg = audioCtx.createGain(); mg.gain.value = 0.85;
+    mainTrack.connect(mg); mg.connect(audioCtx.destination);
+    mainTrack.start();
+    mainTrackStart = audioCtx.currentTime;
+  }
+}
+
+let mainTrackStart = 0;
+function getSongTime() {
+  if (!audioCtx || !bufs['main']) return 0;
+  return Math.min(audioCtx.currentTime - mainTrackStart, SONG_DURATION);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDERER
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x010408);
+scene.fog = new THREE.Fog(0x06090f, 20, 58);
+
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.05, 85);
+camera.position.set(0, 0, 0);
+
+// ═══════════════════════════════════════════════════════════
+// DIMENSIONS
+// ═══════════════════════════════════════════════════════════
+const CW=4.2, CH=22.0, FL=-2.0, SEG=14, POOL=10;
+
+// ═══════════════════════════════════════════════════════════
+// TEXTURE LOADER
+// ═══════════════════════════════════════════════════════════
+const texLoader = new THREE.TextureLoader();
+const loadedTextures = {};
+
+function loadTex(key, path, fallbackFn) {
+  texLoader.load(
+    path,
+    (t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      loadedTextures[key] = t;
+      // Update existing materials when texture arrives
+      if (materialSets[key.split('_')[0]]) updateMaterials();
+    },
+    undefined,
+    () => { loadedTextures[key] = fallbackFn(); }
+  );
+  // Immediate fallback so materials work before file loads
+  loadedTextures[key] = fallbackFn();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROCEDURAL TEXTURES (fallbacks)
+// ═══════════════════════════════════════════════════════════
+function makeConcreteTex(seed) {
+  const S=512, c=document.createElement('canvas');
+  c.width=c.height=S; const ctx=c.getContext('2d');
+  ctx.fillStyle='#1c1f23'; ctx.fillRect(0,0,S,S);
+  const rng=n=>(Math.sin(seed*127.1+n*311.7)*0.5+0.5);
+  for(let y=0;y<S;y+=68+Math.sin(seed+y*.1)*16){
+    const l=20+Math.sin(seed*3+y*.04)*6|0;
+    ctx.fillStyle=`rgb(${l},${l+1},${l+2})`; ctx.fillRect(0,y,S,1.5);
+  }
+  for(let i=0;i<14;i++){
+    ctx.beginPath(); ctx.arc(rng(i)*S,rng(i+100)*S,1.8+rng(i+50)*1.5,0,Math.PI*2);
+    ctx.fillStyle='rgba(3,3,5,0.8)'; ctx.fill();
+  }
+  for(let i=0;i<7;i++){
+    ctx.beginPath();
+    let cx=rng(i+200)*S, cy=rng(i+201)*S*0.3; ctx.moveTo(cx,cy);
+    for(let s=0;s<22;s++){cx+=(rng(i+s+300)-.5)*5;cy+=rng(i+s+301)*26;ctx.lineTo(cx,cy);}
+    ctx.strokeStyle=`rgba(5,5,7,${.3+rng(i+400)*.45})`; ctx.lineWidth=.5+rng(i+401); ctx.stroke();
+  }
+  for(let i=0;i<6;i++){
+    const x=rng(i+500)*S;
+    const g=ctx.createLinearGradient(x,0,x+4,S);
+    g.addColorStop(0,'rgba(25,30,36,0)'); g.addColorStop(.2,'rgba(25,30,36,.22)');
+    g.addColorStop(.75,'rgba(15,18,22,.1)'); g.addColorStop(1,'rgba(8,10,12,0)');
+    ctx.fillStyle=g; ctx.fillRect(x,0,4,S);
+  }
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+}
+
+function makeFloorTex(){
+  const c=document.createElement('canvas'); c.width=c.height=512;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#161819'; ctx.fillRect(0,0,512,512);
+  ctx.strokeStyle='rgba(4,4,6,.92)'; ctx.lineWidth=2;
+  for(let x=0;x<512;x+=128) for(let y=0;y<512;y+=64){
+    const off=(Math.floor(y/64)%2)*64; ctx.strokeRect(x+off-128,y,128,64);
+  }
+  ctx.fillStyle='rgba(2,2,4,.9)'; ctx.fillRect(253,0,6,512);
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+}
+
+function makeEarthTex(){
+  const S=512, c=document.createElement('canvas');
+  c.width=c.height=S; const ctx=c.getContext('2d');
+  ctx.fillStyle='#3a3020'; ctx.fillRect(0,0,S,S);
+  for(let i=0;i<200;i++){
+    const x=Math.random()*S,y=Math.random()*S;
+    const r=2+Math.random()*8;
+    const l=45+Math.random()*25|0;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${l+10},${l},${l-10},0.4)`; ctx.fill();
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+}
+
+function makeMossTex(){
+  const S=512, c=document.createElement('canvas');
+  c.width=c.height=S; const ctx=c.getContext('2d');
+  ctx.fillStyle='#2a3020'; ctx.fillRect(0,0,S,S);
+  for(let i=0;i<300;i++){
+    const x=Math.random()*S,y=Math.random()*S;
+    const g=30+Math.random()*40|0;
+    ctx.beginPath(); ctx.arc(x,y,1+Math.random()*4,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${g-10},${g+10},${g-15},0.5)`; ctx.fill();
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+}
+
+// Load real textures (silent if missing)
+loadTex('dark_wall',  'textures/dark/wall.jpg',    ()=>makeConcreteTex(1.0));
+loadTex('dark_floor', 'textures/dark/floor.jpg',   ()=>makeFloorTex());
+loadTex('dark_ceil',  'textures/dark/ceiling.jpg', ()=>makeConcreteTex(8.3));
+loadTex('light_wall', 'textures/light/wall.jpg',   ()=>makeMossTex());
+loadTex('light_floor','textures/light/floor.jpg',  ()=>makeEarthTex());
+loadTex('light_ceil', 'textures/light/ceiling.jpg',()=>makeMossTex());
+
+// ═══════════════════════════════════════════════════════════
+// MATERIAL SYSTEM — dual sets with crossfade blend
+// ═══════════════════════════════════════════════════════════
+// texBlend: 0 = full dark, 1 = full light
+let texBlend = 0;
+
+// We use a simple approach: two sets of materials, and we
+// lerp their colors + swap maps based on texBlend threshold
+const materialSets = {
+  dark: {
+    wallColor:  new THREE.Color(0x9aabb8),
+    floorColor: new THREE.Color(0x6878a0),
+    ceilColor:  new THREE.Color(0x060809),
+  },
+  light: {
+    wallColor:  new THREE.Color(0xb8a888),
+    floorColor: new THREE.Color(0x8a7850),
+    ceilColor:  new THREE.Color(0xd0c8a0),
+  }
+};
+
+const MAT = {
+  wall:  new THREE.MeshLambertMaterial({ map: loadedTextures['dark_wall'],  color: 0x9aabb8 }),
+  wall2: new THREE.MeshLambertMaterial({ map: loadedTextures['dark_wall'],  color: 0x8899a8 }),
+  wall3: new THREE.MeshLambertMaterial({ map: loadedTextures['dark_wall'],  color: 0x7888a0 }),
+  floor: new THREE.MeshLambertMaterial({ map: loadedTextures['dark_floor'], color: 0x6878a0 }),
+  ceil:  new THREE.MeshLambertMaterial({ color: 0x060809 }),
+  water: new THREE.MeshLambertMaterial({ color: 0x18222e, transparent:true, opacity:.75 }),
+  rubble:new THREE.MeshLambertMaterial({ color: 0x3a4248 }),
+  pipe:  new THREE.MeshLambertMaterial({ color: 0x4a5560 }),
+  iron:  new THREE.MeshLambertMaterial({ color: 0x2a3038 }),
+  sconce:new THREE.MeshLambertMaterial({ color: 0x303a44 }),
+  glass: new THREE.MeshLambertMaterial({ color: 0x98c0e0, transparent:true, opacity:.32 }),
+  glassDead:new THREE.MeshLambertMaterial({ color:0x303840, transparent:true, opacity:.45 }),
+  dark:  new THREE.MeshLambertMaterial({ color: 0x020305 }),
+  rust:  new THREE.MeshLambertMaterial({ color: 0x4a3028 }),
+  moss:  new THREE.MeshLambertMaterial({ color: 0x1a2218 }),
+  // Sky window materials
+  sky:   new THREE.MeshBasicMaterial({ color: 0x87ceeb, side: THREE.DoubleSide }),
+  skyFog:new THREE.MeshBasicMaterial({ color: 0xd0e8f8, transparent:true, opacity:0.0 }),
+};
+
+// Swap wall/floor maps when textures load or blend changes
+function updateMaterials() {
+  const t = texBlend;
+  // At blend < 0.5 use dark textures, >= 0.5 use light
+  const wMap  = t < 0.5 ? loadedTextures['dark_wall']  : loadedTextures['light_wall'];
+  const fMap  = t < 0.5 ? loadedTextures['dark_floor'] : loadedTextures['light_floor'];
+  const cMap  = t < 0.5 ? loadedTextures['dark_ceil']  : loadedTextures['light_ceil'];
+  [MAT.wall, MAT.wall2, MAT.wall3].forEach(m => {
+    if (m.map !== wMap) { m.map = wMap; m.needsUpdate = true; }
+  });
+  if (MAT.floor.map !== fMap) { MAT.floor.map = fMap; MAT.floor.needsUpdate = true; }
+  if (MAT.ceil.map  !== cMap) { MAT.ceil.map  = cMap; MAT.ceil.needsUpdate  = true; }
+
+  // Lerp colors
+  const dc = materialSets.dark, lc = materialSets.light;
+  MAT.wall.color.lerpColors(dc.wallColor, lc.wallColor, t);
+  MAT.wall2.color.copy(MAT.wall.color).multiplyScalar(0.9);
+  MAT.wall3.color.copy(MAT.wall.color).multiplyScalar(0.82);
+  MAT.floor.color.lerpColors(dc.floorColor, lc.floorColor, t);
+  MAT.ceil.color.lerpColors(dc.ceilColor, lc.ceilColor, t);
+}
+
+// ═══════════════════════════════════════════════════════════
+// HUE STATE
+// ═══════════════════════════════════════════════════════════
+const HUE_PALETTES = [
+  { fog: new THREE.Color(0x06090f), amb: new THREE.Color(0x1a2840) }, // default cold blue
+  { fog: new THREE.Color(0x0a0810), amb: new THREE.Color(0x28183a ) }, // purple
+  { fog: new THREE.Color(0x080f0a), amb: new THREE.Color(0x142818 ) }, // deep green
+  { fog: new THREE.Color(0x0f0a06), amb: new THREE.Color(0x2a1808 ) }, // sepia
+  { fog: new THREE.Color(0x080810), amb: new THREE.Color(0x181838 ) }, // indigo
+];
+let currentPalette = 0;
+let targetFogColor = new THREE.Color().copy(HUE_PALETTES[0].fog);
+let currentFogColor = new THREE.Color().copy(HUE_PALETTES[0].fog);
+let corridorCount = 0;
+
+// ═══════════════════════════════════════════════════════════
+// SCENE LIGHTS (dynamic — updated each frame)
+// ═══════════════════════════════════════════════════════════
+const ambientLight = new THREE.AmbientLight(0x1a2840, 3.5);
+scene.add(ambientLight);
+const hemiLight = new THREE.HemisphereLight(0x243858, 0x080d14, 1.8);
+scene.add(hemiLight);
+// Sun — off by default, activated during transition
+const sunLight = new THREE.DirectionalLight(0xfff8e8, 0);
+sunLight.position.set(0, 10, -20);
+scene.add(sunLight);
+
+// ═══════════════════════════════════════════════════════════
+// FLICKER REGISTRY
+// ═══════════════════════════════════════════════════════════
+const flickerLights = [];
+
+// ═══════════════════════════════════════════════════════════
+// SCONCE SYSTEM
+// ═══════════════════════════════════════════════════════════
+const SCONCE_ROWS = [
+  { y:1.6,  chance:1.0,  scale:1.0  },
+  { y:4.2,  chance:0.68, scale:0.82 },
+  { y:7.2,  chance:0.42, scale:0.62 },
+  { y:10.8, chance:0.22, scale:0.42 },
+  { y:14.5, chance:0.12, scale:0.28 },
+  { y:18.8, chance:0.06, scale:0.18 },
+];
+
+function sconceType() {
+  const r = Math.random();
+  return r<0.52?'working': r<0.76?'flicker':'broken';
+}
+
+function addSconceColumn(group, wallX, z, side) {
+  SCONCE_ROWS.forEach(row => {
+    if (Math.random() > row.chance) return;
+    const type = sconceType();
+    const sc = row.scale;
+    const y = FL + row.y;
+
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06*sc,0.06*sc,0.22*sc), MAT.sconce);
+    arm.position.set(wallX+side*0.08*sc, y, z);
+    group.add(arm);
+
+    const globeMat = type==='broken' ? MAT.glassDead : MAT.glass;
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(0.09*sc,8,8), globeMat);
+    globe.position.set(wallX+side*0.16*sc, y, z);
+    group.add(globe);
+
+    if (type==='broken') {
+      const shard = new THREE.Mesh(new THREE.SphereGeometry(0.04*sc,4,4), MAT.rust);
+      shard.position.set(wallX+side*0.18*sc, y-0.03*sc, z+0.02*sc);
+      group.add(shard);
+      return;
+    }
+
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(0.038*sc,6,6),
+      new THREE.MeshBasicMaterial({ color:0xc0d8f0 })
+    );
+    core.position.copy(globe.position);
+    group.add(core);
+
+    const intensity = (3.2+Math.random()*0.9)*sc*(row.y<3?1.5:1.0);
+    const range = (10+row.y*0.45)*sc;
+    const light = new THREE.PointLight(0x90c0e8, intensity, range, 1.8);
+    light.position.set(wallX+side*0.19*sc, y, z);
+    if (sc>0.5) {
+      light.castShadow=true;
+      light.shadow.mapSize.set(128,128);
+      light.shadow.camera.near=0.05; light.shadow.camera.far=range;
+    }
+    group.add(light);
+
+    if (type==='flicker') {
+      flickerLights.push({
+        light, core,
+        phase:Math.random()*Math.PI*2,
+        speed:3+Math.random()*9,
+        baseIntensity:intensity,
+        mode:Math.random()<0.5?'slow':'erratic'
+      });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRIP PARTICLES
+// ═══════════════════════════════════════════════════════════
+const drips=[];
+const DRIP_MAT=new THREE.MeshBasicMaterial({color:0x2a4458,transparent:true,opacity:0.72});
+const SPLASH_MAT=new THREE.MeshBasicMaterial({color:0x1a3040,transparent:true,opacity:0,side:THREE.DoubleSide});
+
+for(let i=0;i<20;i++){
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(0.017,4,4),DRIP_MAT.clone());
+  mesh.visible=false; scene.add(mesh);
+  const splash=new THREE.Mesh(new THREE.RingGeometry(0.01,0.055,8),SPLASH_MAT.clone());
+  splash.rotation.x=-Math.PI/2; splash.visible=false; scene.add(splash);
+  drips.push({mesh,splash,vy:0,x:0,z:0,startY:0,active:false,splashing:false,splashT:0,timer:Math.random()*8});
+}
+
+function resetDrip(d){
+  d.x=(Math.random()-.5)*(CW-.6);
+  d.z=camera.position.z-2-Math.random()*28;
+  d.startY=FL+CH*.45+Math.random()*CH*.38;
+  d.mesh.position.set(d.x,d.startY,d.z);
+  d.vy=0; d.active=true; d.splashing=false;
+  d.mesh.visible=true; d.splash.visible=false;
+  d.timer=5+Math.random()*12;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SKY WINDOW
+// ═══════════════════════════════════════════════════════════
+let skyWindowGroup = null;
+let skyWindowActive = false;
+let skyCloudT = 0;
+
+function buildSkyWindow() {
+  const g = new THREE.Group();
+
+  // Outer frame — thick concrete surround
+  const frameTop    = new THREE.Mesh(new THREE.BoxGeometry(CW+0.4, 0.35, 0.3), MAT.wall);
+  const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(CW+0.4, 0.35, 0.3), MAT.wall);
+  const frameLeft   = new THREE.Mesh(new THREE.BoxGeometry(0.35, 5.5, 0.3), MAT.wall);
+  const frameRight  = frameLeft.clone();
+
+  frameTop.position.set(0, FL+6.45, 0);
+  frameBottom.position.set(0, FL+1.25, 0);
+  frameLeft.position.set(-CW/2+0.17, FL+3.8, 0);
+  frameRight.position.set( CW/2-0.17, FL+3.8, 0);
+  [frameTop,frameBottom,frameLeft,frameRight].forEach(m=>g.add(m));
+
+  // Sky canvas — animated procedural sky
+  const skyCanvas = document.createElement('canvas');
+  skyCanvas.width=512; skyCanvas.height=256;
+  const skyCtx = skyCanvas.getContext('2d');
+  const skyTex = new THREE.CanvasTexture(skyCanvas);
+
+  function drawSky(t) {
+    // Sky gradient
+    const grad = skyCtx.createLinearGradient(0,0,0,256);
+    grad.addColorStop(0,'#5ba3d9');
+    grad.addColorStop(0.4,'#87ceeb');
+    grad.addColorStop(1,'#c8e8f8');
+    skyCtx.fillStyle=grad; skyCtx.fillRect(0,0,512,256);
+
+    // Clouds — simple ellipse shapes drifting
+    const clouds = [
+      {x:0.15,y:0.3,w:120,h:35,speed:0.008},
+      {x:0.45,y:0.2,w:180,h:50,speed:0.005},
+      {x:0.72,y:0.35,w:100,h:28,speed:0.011},
+      {x:0.9, y:0.15,w:150,h:40,speed:0.007},
+    ];
+    skyCtx.fillStyle='rgba(255,255,255,0.88)';
+    clouds.forEach(cl=>{
+      const cx=((cl.x+t*cl.speed)%1.2-0.1)*512;
+      const cy=cl.y*256;
+      skyCtx.beginPath();
+      skyCtx.ellipse(cx,cy,cl.w,cl.h,0,0,Math.PI*2);
+      skyCtx.fill();
+      // Soft glow on cloud
+      skyCtx.beginPath();
+      skyCtx.ellipse(cx,cy-cl.h*0.2,cl.w*0.7,cl.h*0.5,0,0,Math.PI*2);
+      skyCtx.fillStyle='rgba(255,255,255,0.5)';
+      skyCtx.fill();
+      skyCtx.fillStyle='rgba(255,255,255,0.88)';
+    });
+
+    // Sun glow top-right
+    const sunGrad=skyCtx.createRadialGradient(420,40,0,420,40,100);
+    sunGrad.addColorStop(0,'rgba(255,252,220,0.7)');
+    sunGrad.addColorStop(1,'rgba(255,252,220,0)');
+    skyCtx.fillStyle=sunGrad; skyCtx.fillRect(0,0,512,256);
+
+    skyTex.needsUpdate=true;
+  }
+
+  const skyMat = new THREE.MeshBasicMaterial({ map:skyTex, side:THREE.FrontSide });
+  const skyPane = new THREE.Mesh(new THREE.PlaneGeometry(CW-0.72, 5.0), skyMat);
+  skyPane.position.set(0, FL+3.8, 0.01);
+  g.userData.drawSky = drawSky;
+  g.userData.skyTex = skyTex;
+  g.add(skyPane);
+
+  // Light shafts from window
+  const shaftMat = new THREE.MeshBasicMaterial({
+    color:0xfff8e0, transparent:true, opacity:0.0, side:THREE.DoubleSide
+  });
+  const shaft = new THREE.Mesh(new THREE.PlaneGeometry(CW-0.72, 8), shaftMat);
+  shaft.rotation.x=-Math.PI/2; shaft.position.set(0,FL+0.01,-3);
+  g.userData.shaft=shaft;
+  g.add(shaft);
+
+  g.visible=false;
+  scene.add(g);
+  return g;
+}
+
+skyWindowGroup = buildSkyWindow();
+
+// ═══════════════════════════════════════════════════════════
+// SHELL / DERELICT BUILDERS
+// ═══════════════════════════════════════════════════════════
+function shell(group,len,mat){
+  const L=len||SEG,m=mat||MAT.wall;
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(CW,L),MAT.floor);
+  fl.rotation.x=-Math.PI/2; fl.position.set(0,FL,-L/2); fl.receiveShadow=true; group.add(fl);
+  const ce=new THREE.Mesh(new THREE.PlaneGeometry(CW,L),MAT.ceil);
+  ce.rotation.x=Math.PI/2; ce.position.set(0,FL+CH,-L/2); group.add(ce);
+  const wL=new THREE.Mesh(new THREE.PlaneGeometry(L,CH),m);
+  wL.rotation.y=Math.PI/2; wL.position.set(-CW/2,FL+CH/2,-L/2); wL.receiveShadow=true; group.add(wL);
+  const wR=new THREE.Mesh(new THREE.PlaneGeometry(L,CH),m);
+  wR.rotation.y=-Math.PI/2; wR.position.set(CW/2,FL+CH/2,-L/2); wR.receiveShadow=true; group.add(wR);
+  const bk=new THREE.Mesh(new THREE.PlaneGeometry(CW,CH),MAT.dark);
+  bk.position.set(0,FL+CH/2,-L); group.add(bk);
+}
+
+function addDerelict(group,seed){
+  const rng=n=>(Math.sin(seed*91.3+n*177.7)*0.5+0.5);
+  for(let i=0;i<3;i++){
+    if(rng(i+10)<0.4)continue;
+    const grime=new THREE.Mesh(
+      new THREE.PlaneGeometry(0.4+rng(i+11)*0.8,0.3+rng(i+12)*0.6),
+      new THREE.MeshLambertMaterial({color:0x090b0d,transparent:true,opacity:0.55+rng(i+13)*0.3})
+    );
+    grime.rotation.x=-Math.PI/2;
+    grime.position.set((rng(i+14)-.5)*(CW-.6),FL+0.005,-rng(i+15)*SEG);
+    group.add(grime);
+  }
+  for(const side of[-1,1]){
+    if(rng(seed+side*3)<0.35)continue;
+    const sH=1.2+rng(seed+side)*2;
+    const streak=new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08+rng(seed+side+1)*0.14,sH),
+      new THREE.MeshLambertMaterial({color:0x3a2010,transparent:true,opacity:0.5+rng(seed+side+2)*0.3})
+    );
+    streak.rotation.y=side>0?-Math.PI/2:Math.PI/2;
+    streak.position.set(side*CW/2+side*0.01,FL+sH/2,-(2+rng(seed+side+3)*SEG*0.8));
+    group.add(streak);
+  }
+  if(rng(seed+50)>0.68){
+    const side=rng(seed+51)>0.5?1:-1;
+    const chain=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,0.55+rng(seed+52)*1.1,5),MAT.iron);
+    chain.position.set(side*(CW/2-.2),FL+3.4+rng(seed+53)*1.8,-(3+rng(seed+54)*(SEG-4)));
+    group.add(chain);
+    const fix=new THREE.Mesh(new THREE.BoxGeometry(.11,.07,.11),MAT.rust);
+    fix.position.set(chain.position.x,chain.position.y-.38,chain.position.z); group.add(fix);
+  }
+  for(const side of[-1,1]){
+    if(rng(seed+side*7)<0.3)continue;
+    const mH=0.28+rng(seed+side*7+1)*0.48;
+    const moss=new THREE.Mesh(new THREE.PlaneGeometry(SEG,mH),MAT.moss);
+    moss.rotation.y=side>0?-Math.PI/2:Math.PI/2;
+    moss.position.set(side*CW/2+side*.004,FL+mH/2,-SEG/2); group.add(moss);
+  }
+  const rc=Math.floor(rng(seed+80)*4);
+  for(let i=0;i<rc;i++){
+    const s=.04+rng(seed+80+i)*.11;
+    const rb=new THREE.Mesh(new THREE.BoxGeometry(s,s*.6,s*1.1),MAT.rubble);
+    rb.position.set((rng(seed+90+i)-.5)*(CW-.5),FL+s*.3,-(1+rng(seed+91+i)*(SEG-2)));
+    rb.rotation.y=rng(seed+92+i)*Math.PI; group.add(rb);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEN SEGMENT VARIANTS
+// ═══════════════════════════════════════════════════════════
+let segSeed=0; const ns=()=>segSeed+=13.7;
+
+function segStandard(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  addSconceColumn(g,-CW/2,-SEG*.25,1); addSconceColumn(g,CW/2,-SEG*.75,-1);
+  return g;
+}
+function segFlooded(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  const w=new THREE.Mesh(new THREE.PlaneGeometry(CW-.06,SEG),MAT.water);
+  w.rotation.x=-Math.PI/2;w.position.set(0,FL+.08,-SEG/2);g.add(w);
+  addSconceColumn(g,-CW/2,-SEG*.5,1);return g;
+}
+function segCollapsed(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  [[.4,FL+.18,-SEG*.45],[-.3,FL+.12,-SEG*.5],[.1,FL+.22,-SEG*.55],
+   [-.6,FL+.09,-SEG*.42],[.7,FL+.13,-SEG*.48],[.2,FL+.17,-SEG*.3]].forEach(([x,y,z],i)=>{
+    const sz=.12+(i%3)*.09;
+    const rb=new THREE.Mesh(new THREE.BoxGeometry(sz,sz*.65,sz*1.15),MAT.rubble);
+    rb.position.set(x,y,z);rb.rotation.y=i*.75;g.add(rb);
+  });
+  const sl=new THREE.Mesh(new THREE.BoxGeometry(1.7,.13,1.1),MAT.rubble);
+  sl.position.set(-.3,FL+CH-1.5,-SEG*.5);sl.rotation.z=.14;g.add(sl);
+  const dim=new THREE.PointLight(0x304858,1.8,18);dim.position.set(0,FL+1.2,-SEG*.4);g.add(dim);
+  return g;
+}
+function segSealedLeft(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  addSconceColumn(g,CW/2,-SEG*.5,-1);
+  const af=new THREE.Mesh(new THREE.BoxGeometry(.1,3.2,1.3),MAT.wall2);
+  af.position.set(-CW/2+.05,FL+1.6,-SEG*.5);g.add(af);
+  const ks=new THREE.Mesh(new THREE.BoxGeometry(.12,.15,1.38),MAT.sconce);
+  ks.position.set(-CW/2+.06,FL+3.27,-SEG*.5);g.add(ks);
+  return g;
+}
+function segSealedRight(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  addSconceColumn(g,-CW/2,-SEG*.5,1);
+  const af=new THREE.Mesh(new THREE.BoxGeometry(.1,3.2,1.3),MAT.wall2);
+  af.position.set(CW/2-.05,FL+1.6,-SEG*.5);g.add(af);
+  const ks=new THREE.Mesh(new THREE.BoxGeometry(.12,.15,1.38),MAT.sconce);
+  ks.position.set(CW/2-.06,FL+3.27,-SEG*.5);g.add(ks);
+  return g;
+}
+function segAlcoveLeft(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  addSconceColumn(g,-CW/2,-SEG*.5,1);
+  const bk=new THREE.Mesh(new THREE.PlaneGeometry(1.5,3.2),MAT.wall3);
+  bk.position.set(-CW/2-1.1,FL+1.6,-SEG*.5);g.add(bk);
+  const tp=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.5),MAT.ceil);
+  tp.rotation.x=Math.PI/2;tp.rotation.z=Math.PI/2;
+  tp.position.set(-CW/2-.55,FL+3.2,-SEG*.5);g.add(tp);
+  return g;
+}
+function segChamber(){
+  const g=new THREE.Group();const s=ns();const ex=2.0;
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(CW+ex*2,SEG),MAT.floor);
+  fl.rotation.x=-Math.PI/2;fl.position.set(0,FL,-SEG/2);g.add(fl);
+  const ce=new THREE.Mesh(new THREE.PlaneGeometry(CW+ex*2,SEG),MAT.ceil);
+  ce.rotation.x=Math.PI/2;ce.position.set(0,FL+CH,-SEG/2);g.add(ce);
+  const wL=new THREE.Mesh(new THREE.PlaneGeometry(SEG,CH),MAT.wall);
+  wL.rotation.y=Math.PI/2;wL.position.set(-(CW/2+ex),FL+CH/2,-SEG/2);g.add(wL);
+  const wR=wL.clone();wR.rotation.y=-Math.PI/2;wR.position.set(CW/2+ex,FL+CH/2,-SEG/2);g.add(wR);
+  const bk=new THREE.Mesh(new THREE.PlaneGeometry(CW+ex*2,CH),MAT.dark);
+  bk.position.set(0,FL+CH/2,-SEG);g.add(bk);
+  addDerelict(g,s);
+  addSconceColumn(g,-(CW/2+ex),-SEG*.25,1);addSconceColumn(g,CW/2+ex,-SEG*.25,-1);
+  addSconceColumn(g,-(CW/2+ex),-SEG*.75,1);addSconceColumn(g,CW/2+ex,-SEG*.75,-1);
+  return g;
+}
+function segPipes(){
+  const g=new THREE.Group();const s=ns();shell(g,SEG,MAT.wall2);addDerelict(g,s);
+  addSconceColumn(g,CW/2,-SEG*.4,-1);
+  [-.9,0,1.0].forEach((px,i)=>{
+    const p=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,SEG,8),MAT.pipe);
+    p.rotation.x=Math.PI/2;p.position.set(px,FL+CH-.32-i*.14,-SEG/2);g.add(p);
+    for(let bz=-2;bz>=-SEG+2;bz-=3.5){
+      const br=new THREE.Mesh(new THREE.BoxGeometry(.05,.35,.05),MAT.iron);
+      br.position.set(px,FL+CH-.58-i*.14,bz);g.add(br);
+    }
+  });
+  return g;
+}
+function segDark(){
+  const g=new THREE.Group();const s=ns();shell(g);addDerelict(g,s);
+  const sm=new THREE.Mesh(new THREE.SphereGeometry(.09,6,6),MAT.iron);
+  sm.position.set(-CW/2+.55,FL+.09,-SEG*.6);g.add(sm);
+  const gh=new THREE.PointLight(0x182436,.8,24);
+  gh.position.set(0,FL+1.2,-SEG);g.add(gh);
+  return g;
+}
+function segNarrow(){
+  const g=new THREE.Group();const s=ns();const nw=CW*.52;
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(CW,SEG),MAT.floor);
+  fl.rotation.x=-Math.PI/2;fl.position.set(0,FL,-SEG/2);g.add(fl);
+  const ce=new THREE.Mesh(new THREE.PlaneGeometry(CW,SEG),MAT.ceil);
+  ce.rotation.x=Math.PI/2;ce.position.set(0,FL+CH,-SEG/2);g.add(ce);
+  const wL=new THREE.Mesh(new THREE.PlaneGeometry(SEG,CH),MAT.wall);
+  wL.rotation.y=Math.PI/2;wL.position.set(-nw/2,FL+CH/2,-SEG/2);g.add(wL);
+  const wR=wL.clone();wR.rotation.y=-Math.PI/2;wR.position.set(nw/2,FL+CH/2,-SEG/2);g.add(wR);
+  const iL=new THREE.Mesh(new THREE.PlaneGeometry((CW-nw)/2,CH),MAT.wall2);
+  iL.position.set(-(nw/2+(CW-nw)/4),FL+CH/2,.01);g.add(iL);
+  const iR=iL.clone();iR.position.set(nw/2+(CW-nw)/4,FL+CH/2,.01);g.add(iR);
+  const bk=new THREE.Mesh(new THREE.PlaneGeometry(CW,CH),MAT.dark);
+  bk.position.set(0,FL+CH/2,-SEG);g.add(bk);
+  addDerelict(g,s);addSconceColumn(g,-nw/2,-SEG*.5,1);
+  return g;
+}
+
+const BUILDERS=[segStandard,segFlooded,segCollapsed,segSealedLeft,segSealedRight,
+                 segAlcoveLeft,segChamber,segPipes,segDark,segNarrow];
+const WEIGHTS=[4,2,1,1,1,1,1,1,1,1];
+const WTOTAL=WEIGHTS.reduce((a,b)=>a+b,0);
+function pickVariant(){
+  let r=Math.random()*WTOTAL;
+  for(let i=0;i<BUILDERS.length;i++){r-=WEIGHTS[i];if(r<=0)return BUILDERS[i]();}
+  return segStandard();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SEGMENT POOL
+// ═══════════════════════════════════════════════════════════
+const segments=[];
+let frontZ=0;
+for(let i=0;i<POOL;i++){
+  const seg=i===0?segStandard():pickVariant();
+  seg.position.z=frontZ; frontZ-=SEG;
+  scene.add(seg); segments.push(seg);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════════════════════════
+const keys={};
+document.addEventListener('keydown',e=>{keys[e.key]=true;});
+document.addEventListener('keyup',  e=>{keys[e.key]=false;});
+
+let yaw=0, pitch=0, isLocked=false;
+canvas.addEventListener('click',()=>{ if(started) canvas.requestPointerLock(); });
+document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===canvas; });
+document.addEventListener('mousemove',e=>{
+  if(!isLocked)return;
+  yaw  -=e.movementX*.0018;
+  pitch-=e.movementY*.0018;
+  pitch=Math.max(-.75,Math.min(.75,pitch));
+  yaw  =Math.max(-.55,Math.min(.55,yaw));
+});
+
+// Mobile input
+let mobileFwd=false, mobileLeft=false, mobileRight=false;
+let lookTouchId=null, lookStartY=0, lookStartPitch=0;
+let lookStartX=0, lookStartYaw=0;
+
+document.getElementById('btn-forward').addEventListener('touchstart',e=>{e.preventDefault();mobileFwd=true;},{passive:false});
+document.getElementById('btn-forward').addEventListener('touchend',  ()=>mobileFwd=false);
+document.getElementById('btn-left').addEventListener('touchstart',   e=>{e.preventDefault();mobileLeft=true;},{passive:false});
+document.getElementById('btn-left').addEventListener('touchend',     ()=>mobileLeft=false);
+document.getElementById('btn-right').addEventListener('touchstart',  e=>{e.preventDefault();mobileRight=true;},{passive:false});
+document.getElementById('btn-right').addEventListener('touchend',    ()=>mobileRight=false);
+
+// Right half = look drag
+const lookZone = document.getElementById('look-zone');
+lookZone.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const t=e.changedTouches[0];
+  lookTouchId=t.identifier;
+  lookStartY=t.clientY; lookStartPitch=pitch;
+  lookStartX=t.clientX; lookStartYaw=yaw;
+},{passive:false});
+lookZone.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(let t of e.changedTouches){
+    if(t.identifier!==lookTouchId)continue;
+    pitch=lookStartPitch-(t.clientY-lookStartY)*0.004;
+    yaw  =lookStartYaw  -(t.clientX-lookStartX)*0.004;
+    pitch=Math.max(-.75,Math.min(.75,pitch));
+    yaw  =Math.max(-.55,Math.min(.55,yaw));
+  }
+},{passive:false});
+lookZone.addEventListener('touchend',()=>lookTouchId=null);
+
+// ═══════════════════════════════════════════════════════════
+// MESSAGES
+// ═══════════════════════════════════════════════════════════
+const MESSAGES=[
+  "there is no end to this","you have always been here","the dark is not empty",
+  "all passages lead inward","you are the only warmth","before the first light — this",
+  "walk until you remember","the walls know your name","silence is the oldest language",
+  "depth is not a direction","something walks beside you","you began walking long ago",
+  "the dark precedes everything","to descend is to return","you have not been forgotten",
+  "the ceiling has no end","you are expected","keep walking","this has no exit",
+  "you were here before you arrived","the passage remembers you",
+];
+const glyphEl=document.getElementById('glyph-msg');
+let lastMsgZ=0,msgIdx=Math.floor(Math.random()*MESSAGES.length),msgTimer=null;
+function showMessage(){
+  glyphEl.textContent=MESSAGES[msgIdx%MESSAGES.length]; msgIdx++;
+  glyphEl.classList.add('visible');
+  if(msgTimer)clearTimeout(msgTimer);
+  msgTimer=setTimeout(()=>glyphEl.classList.remove('visible'),5800);
+}
+
+// ═══════════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════════
+let started=false;
+document.getElementById('start-screen').addEventListener('click',async()=>{
+  await initAudio();
+  started=true;
+  const ss=document.getElementById('start-screen');
+  ss.classList.add('fade-out');
+  setTimeout(()=>ss.style.display='none',2600);
+});
+
+// ═══════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════
+const WALK=2.5, CRAWL=0.28, TURN=0.68;
+let bobT=0, totalT=0;
+let prevTexBlend=0;
+let isResetting=false;
+const fadeOverlay=document.getElementById('fade-overlay');
+const clock=new THREE.Clock();
+
+function lerp(a,b,t){return a+(b-a)*t;}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function smoothstep(a,b,t){t=clamp((t-a)/(b-a),0,1);return t*t*(3-2*t);}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05);
+  totalT+=dt;
+
+  if(!started){renderer.render(scene,camera);return;}
+
+  // ── Song time & phase ──
+  const st = getSongTime();
+
+  // Compute brightness/blend target from song time
+  let brightnessTarget=0, blendTarget=0, sunTarget=0;
+  if(st>=TRANSITION_START && st<DIRECT_SUN){
+    const p=smoothstep(TRANSITION_START,DIRECT_SUN,st);
+    brightnessTarget=p;
+    blendTarget=p;
+    sunTarget=p*2.5;
+  } else if(st>=DIRECT_SUN && st<RESET_AT){
+    brightnessTarget=1; blendTarget=1; sunTarget=2.5;
+  }
+
+  // Lerp texBlend slowly
+  const blendSpeed=dt*0.008; // very slow crossfade
+  texBlend=clamp(lerp(texBlend,blendTarget,blendSpeed+dt*0.03),0,1);
+  if(Math.abs(texBlend-prevTexBlend)>0.008){
+    updateMaterials();
+    prevTexBlend=texBlend;
+  }
+
+  // Ambient light — base + brightness boost
+  const baseAmb=3.5;
+  const lightBoost=lerp(0,12,brightnessTarget);
+  ambientLight.intensity=baseAmb+lightBoost;
+  hemiLight.intensity=1.8+lerp(0,5,brightnessTarget);
+  sunLight.intensity=sunTarget;
+
+  // Fog — lighter as song progresses
+  const fogNear=lerp(20,40,brightnessTarget);
+  const fogFar =lerp(58,90,brightnessTarget);
+  scene.fog.near=fogNear; scene.fog.far=fogFar;
+
+  // ── Hue shift lerp ──
+  currentFogColor.lerp(targetFogColor,dt*0.4);
+  const brightFogColor=new THREE.Color().lerpColors(
+    currentFogColor, new THREE.Color(0xd8e8f4), brightnessTarget*0.9
+  );
+  scene.fog.color.copy(brightFogColor);
+  scene.background.copy(brightFogColor);
+  ambientLight.color.lerpColors(
+    new THREE.Color(0x1a2840),
+    new THREE.Color(0xffe8c8),
+    brightnessTarget*0.7
+  );
+
+  // ── Sky window ──
+  if(st>=WINDOW_START && !isResetting){
+    if(!skyWindowActive){
+      skyWindowActive=true;
+      skyWindowGroup.visible=true;
+      // Place it ahead of camera, far enough to be dramatic
+      skyWindowGroup.position.set(0,0,camera.position.z-40);
+    }
+    // Animate sky clouds
+    skyCloudT+=dt;
+    if(skyWindowGroup.userData.drawSky) skyWindowGroup.userData.drawSky(skyCloudT);
+    // Light shaft intensity
+    const shaftP=smoothstep(WINDOW_START,DIRECT_SUN,st);
+    if(skyWindowGroup.userData.shaft){
+      skyWindowGroup.userData.shaft.material.opacity=shaftP*0.18;
+    }
+  }
+
+  // ── Reset cycle ──
+  if(st>=RESET_AT && !isResetting){
+    isResetting=true;
+    fadeOverlay.classList.add('active');
+    setTimeout(()=>{
+      // Hard reset
+      texBlend=0; prevTexBlend=0;
+      updateMaterials();
+      skyWindowActive=false;
+      skyWindowGroup.visible=false;
+      mainTrackStart=audioCtx?audioCtx.currentTime:0;
+      // Restart main track
+      if(audioCtx && bufs['main']){
+        if(mainTrack){ try{mainTrack.stop();}catch(e){} }
+        mainTrack=audioCtx.createBufferSource();
+        mainTrack.buffer=bufs['main'];
+        const mg=audioCtx.createGain(); mg.gain.value=0.85;
+        mainTrack.connect(mg); mg.connect(audioCtx.destination);
+        mainTrack.start();
+        mainTrackStart=audioCtx.currentTime;
+      }
+      corridorCount=0;
+      currentPalette=0;
+      targetFogColor.copy(HUE_PALETTES[0].fog);
+      setTimeout(()=>{
+        fadeOverlay.classList.remove('active');
+        isResetting=false;
+      },2600);
+    },2500);
+  }
+
+  // ── Movement ──
+  if(!isResetting){
+    if(keys['a']||keys['A']||keys['ArrowLeft']||mobileLeft)  yaw+=TURN*dt;
+    if(keys['d']||keys['D']||keys['ArrowRight']||mobileRight) yaw-=TURN*dt;
+    yaw*=.966; yaw=clamp(yaw,-.55,.55);
+
+    const moving=keys['w']||keys['W']||keys['ArrowUp']||mobileFwd;
+    const speed=moving?WALK:CRAWL;
+    camera.position.z+=-speed*dt;
+    camera.position.x+=Math.sin(yaw)*speed*dt;
+    camera.position.x=clamp(camera.position.x,-(CW/2-.48),CW/2-.48);
+
+    bobT+=dt*(moving?3.1:.85);
+    camera.position.y=Math.sin(bobT)*(moving?.048:.014);
+
+    // Footstep audio
+    if(moving&&audioCtx){
+      const now=audioCtx.currentTime;
+      if(now-lastStepTime>STEP_INTERVAL){
+        playShot('step',0.65+Math.random()*.28,0.06);
+        lastStepTime=now;
+      }
+    }
+  }
+
+  // Camera orientation
+  camera.rotation.order='YXZ';
+  camera.rotation.y=yaw;
+  camera.rotation.x=pitch+Math.sin(bobT*.7)*.006;
+
+  // ── Flicker ──
+  flickerLights.forEach(f=>{
+    if(f.mode==='slow'){
+      const v=0.72+Math.sin(totalT*f.speed+f.phase)*0.28+Math.sin(totalT*f.speed*.38+f.phase)*.14;
+      f.light.intensity=f.baseIntensity*Math.max(.08,v);
+    } else {
+      const st2=Math.random()<.07?Math.random()<.5?0:.12:1;
+      const v=(0.62+Math.sin(totalT*f.speed+f.phase)*.38)*st2;
+      f.light.intensity=f.baseIntensity*Math.max(0,v);
+    }
+  });
+
+  // ── Drips ──
+  drips.forEach(d=>{
+    if(!d.active){
+      d.timer-=dt;
+      if(d.timer<=0)resetDrip(d);
+      return;
+    }
+    if(d.splashing){
+      d.splashT+=dt;
+      d.splash.material.opacity=Math.max(0,.45*(1-d.splashT/.55));
+      d.splash.scale.setScalar(1+d.splashT*7);
+      if(d.splashT>.55){d.mesh.visible=false;d.splash.visible=false;d.active=false;d.timer=5+Math.random()*11;}
+      return;
+    }
+    d.vy-=9.6*dt;
+    d.mesh.position.y+=d.vy*dt;
+    if(d.mesh.position.y<=FL+0.01){
+      d.splashing=true; d.splashT=0;
+      d.mesh.visible=false;
+      d.splash.position.set(d.x,FL+0.004,d.z);
+      d.splash.visible=true;
+      d.splash.material.opacity=0.45;
+      d.splash.scale.setScalar(1);
+      playDrip();
+    }
+  });
+
+  // ── Segment recycling + hue/corridor tracking ──
+  for(let i=0;i<segments.length;i++){
+    const seg=segments[i];
+    if(seg.position.z>camera.position.z+SEG*1.6){
+      scene.remove(seg);
+      const fresh=pickVariant();
+      fresh.position.z=frontZ; frontZ-=SEG;
+      scene.add(fresh); segments[i]=fresh;
+      corridorCount++;
+      // Every 5th new segment, shift hue
+      if(corridorCount%5===0 && brightnessTarget<0.3){
+        const next=(currentPalette+1)%HUE_PALETTES.length;
+        currentPalette=next;
+        targetFogColor.copy(HUE_PALETTES[currentPalette].fog);
+      }
+    }
+  }
+
+  // ── Messages ──
+  if(camera.position.z<lastMsgZ-24-Math.random()*16){
+    lastMsgZ=camera.position.z; showMessage();
+  }
+
+  renderer.render(scene,camera);
+}
+
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
