@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BE NOT AFRAID — Esoteric Tradition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=IM+Fell+English:ital@0;1&display=swap');
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{--gold:#c9a84c;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;}
+  #void-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;}
+  #face-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:2;}
+  #glitch-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;}
+  #title-block{position:fixed;top:3vh;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none;opacity:0;animation:titleReveal 4s ease-out 1s forwards;}
+  #title-block h1{font-family:'Cinzel Decorative',serif;font-size:clamp(1rem,2.5vw,2.2rem);font-weight:900;color:var(--gold);letter-spacing:0.4em;text-transform:uppercase;text-shadow:0 0 40px rgba(201,168,76,0.5),0 0 80px rgba(201,168,76,0.25);}
+  #title-block .subtitle{font-family:'IM Fell English',serif;font-style:italic;font-size:clamp(0.6rem,1vw,0.85rem);color:rgba(240,236,228,0.45);letter-spacing:0.25em;margin-top:0.4rem;}
+  #voice-text{position:fixed;bottom:10vh;left:50%;transform:translateX(-50%);z-index:11;text-align:center;font-family:'Cinzel Decorative',serif;font-size:clamp(1.2rem,3vw,2.8rem);color:rgba(240,236,228,0);letter-spacing:0.35em;text-transform:uppercase;pointer-events:none;white-space:nowrap;}
+  #revelation-text{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:4;width:65vw;max-width:750px;text-align:center;font-family:'IM Fell English',serif;font-style:italic;font-size:clamp(0.7rem,1.3vw,1.05rem);color:rgba(201,168,76,0);line-height:2;letter-spacing:0.06em;pointer-events:none;transition:color 3.5s ease;}
+  #back-btn{position:fixed;top:14px;left:16px;z-index:200;font-family:'Cinzel Decorative',serif;font-size:clamp(0.45rem,1vw,0.6rem);letter-spacing:0.3em;text-transform:uppercase;color:rgba(201,168,76,0.45);background:rgba(0,0,0,0.8);border:1px solid rgba(201,168,76,0.18);padding:0.4em 0.9em;cursor:pointer;transition:all 0.3s;}
+  #back-btn:hover{color:rgba(201,168,76,0.95);border-color:rgba(201,168,76,0.5);}
+  #status{position:fixed;bottom:2vh;right:1.5vw;z-index:300;font-family:monospace;font-size:8px;color:rgba(201,168,76,0.28);text-align:right;pointer-events:none;line-height:1.9;max-width:45vw;}
+  @keyframes titleReveal{from{opacity:0;transform:translateX(-50%) translateY(-8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+  @keyframes voiceFlash{0%{color:rgba(240,236,228,0);text-shadow:none;}8%{color:rgba(255,255,255,1);text-shadow:0 0 30px rgba(255,255,255,0.9),0 0 60px rgba(201,168,76,0.6);}15%{color:rgba(240,236,228,0.7);text-shadow:0 0 20px rgba(201,168,76,0.5);}85%{color:rgba(240,236,228,0.65);text-shadow:0 0 15px rgba(201,168,76,0.4);}100%{color:rgba(240,236,228,0);text-shadow:none;}}
+  .voice-active{animation:voiceFlash 5s ease forwards !important;}
+</style>
+</head>
+<body>
+<button id="back-btn" onclick="goBack()">&#8592; Back</button>
+<canvas id="void-canvas"></canvas>
+<canvas id="face-canvas"></canvas>
+<canvas id="glitch-canvas"></canvas>
+<div id="title-block">
+  <h1>Be Not Afraid</h1>
+  <div class="subtitle">Esoteric Tradition · Installation I</div>
+</div>
+<div id="voice-text">BE NOT AFRAID</div>
+<div id="revelation-text"></div>
+<div id="status"></div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+var REPO_RAW = 'https://raw.githubusercontent.com/matronthorn/EsotericTradition/main';
+var ANTHROPIC_KEY = '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';
+
+var FACE_FILES = [
+  'EVvtL02WoAEi_5b.jpg',
+  'images (25).jpeg','images (26).jpeg','images (27).jpeg',
+  'images (28).jpeg','images (29).jpeg','images (30).jpeg',
+  'images (31).jpeg','images (32).jpeg','images (33).jpeg',
+  's-l1200.jpg',
+  '2b74c6fa54cc54dea9e3.jpg',
+  'bella-1-59e55973b9a74.jpg',
+  'f9231e0bdcf3292fb9f2a.jpg',
+];
+
+var MEDIA_FILES = [
+  'RDT_20260408_085401.mp4','RDT_20260408_084626.mp4','RDT_20260408_084521.mp4',
+  'RDT_20260408_081748.mp4','RDT_20260408_081553.mp4','RDT_20260408_080207.mp4',
+  'RDT_20260408_081628.mp4','RDT_20260408_080223.mp4','RDT_20260408_080042.mp4',
+  'RDT_20260408_075802.mp4','RDT_20260408_075621.mp4',
+];
+
+var FACE_HOLD_MS = 10000;
+var FACE_FADE_MS = 2500;
+
+// ── Status log ──
+var statusEl = document.getElementById('status');
+function log(m){ console.log(m); if(statusEl){ statusEl.innerHTML = m+'<br>'+statusEl.innerHTML; var l=statusEl.innerHTML.split('<br>'); if(l.length>14) statusEl.innerHTML=l.slice(0,14).join('<br>'); } }
+
+// ── Back ──
+function goBack(){
+  try{ if(window.parent&&window.parent!==window&&window.parent.closeInstallation){window.parent.closeInstallation();return;} }catch(e){}
+  if(history.length>1)history.back(); else window.close();
+}
+window.addEventListener('popstate',function(){stopAll();});
+
+// ═══════════════════════════════════════════════════════════════
+// WEBGL VOID SHADER — stronger, more prominent
+// ═══════════════════════════════════════════════════════════════
+var voidCanvas = document.getElementById('void-canvas');
+var gl = voidCanvas.getContext('webgl')||voidCanvas.getContext('experimental-webgl');
+var voidProg, uTime, uRes, glStart, glRunning=false;
+
+var VS='attribute vec2 a;void main(){gl_Position=vec4(a,0,1);}';
+var FS=[
+'precision highp float;',
+'uniform float u_time;uniform vec2 u_res;',
+'vec2 h2(vec2 p){p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));return -1.0+2.0*fract(sin(p)*43758.5453);}',
+'float gn(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.0-2.0*f);return mix(mix(dot(h2(i),f),dot(h2(i+vec2(1,0)),f-vec2(1,0)),u.x),mix(dot(h2(i+vec2(0,1)),f-vec2(0,1)),dot(h2(i+vec2(1,1)),f-vec2(1,1)),u.x),u.y);}',
+'float fbm(vec2 p,float t){float v=0.,a=0.6;mat2 r=mat2(.8,.6,-.6,.8);for(int i=0;i<8;i++){v+=a*gn(p);p=r*p*2.1+vec2(100.)+vec2(t*.04,t*.023);a*=0.48;}return v;}',
+'void main(){',
+'  vec2 uv=(gl_FragCoord.xy-u_res*.5)/min(u_res.x,u_res.y);',
+'  float t=u_time,r=length(uv),ang=atan(uv.y,uv.x);',
+// Stronger implosion warp
+'  float impl=0.14*sin(r*5.0-t*0.9)*(1.2-r);',
+'  float twist=0.45*sin(t*0.11)*exp(-r*1.2);',
+'  vec2 w=vec2((r+impl)*cos(ang+twist),(r+impl)*sin(ang+twist));',
+'  float n1=fbm(w*3.0+vec2(t*.05,0.),t);',
+'  float n2=fbm(w*3.0+vec2(0.,t*.038)+vec2(5.7,1.3),t*1.15);',
+'  float n3=fbm(w*3.0+vec2(-t*.03,t*.022)+vec2(11.2,7.8),t*.88);',
+// TV static — heavier
+'  float st=mix(gn(uv*90.+vec2(t*4.2,t*2.7)),gn(uv*200.+vec2(-t*6.1,t*5.1)),0.45)*0.13;',
+'  float hS=t*0.06;',
+'  vec3 c1=0.5+0.5*cos(6.283*(fract(n1*.5+.5+hS)+vec3(0.,.45,.7)));',
+'  vec3 c2=0.5+0.5*cos(6.283*(fract(n2*.5+.5+hS+.33)+vec3(.15,0.,.5)));',
+'  vec3 c3=0.5+0.5*cos(6.283*(fract(n3*.5+.5+hS+.67)+vec3(.5,.3,0.)));',
+'  vec3 col=mix(mix(c1,c2,smoothstep(-.3,.3,n1)),c3,smoothstep(-.3,.3,n2)*.6);',
+// Stronger brightness — more present
+'  float vig=1.0-smoothstep(.25,1.0,r*(1.0+0.12*sin(t*.19)));',
+'  col*=vig*1.15;',
+'  col+=st;',
+'  col+=0.07*sin(r*10.-t*1.8)*exp(-r*1.5);',
+// Scanlines on the shader too
+'  col*=0.88+0.12*sin(gl_FragCoord.y*2.8+t*6.0);',
+'  col=pow(clamp(col,0.,1.),vec3(1.2));',
+'  gl_FragColor=vec4(col,1.);',
+'}'
+].join('');
+
+function cSh(type,src){var s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;}
+function initGL(){
+  if(!gl){log('No WebGL');return false;}
+  var p=gl.createProgram();
+  gl.attachShader(p,cSh(gl.VERTEX_SHADER,VS));
+  gl.attachShader(p,cSh(gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){log('GL fail:'+gl.getProgramInfoLog(p));return false;}
+  voidProg=p;
+  var b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(p,'a');gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  uTime=gl.getUniformLocation(p,'u_time');uRes=gl.getUniformLocation(p,'u_res');
+  gl.useProgram(p);glStart=performance.now();log('GL OK');return true;
+}
+function resizeGL(){voidCanvas.width=window.innerWidth;voidCanvas.height=window.innerHeight;if(gl)gl.viewport(0,0,voidCanvas.width,voidCanvas.height);}
+function renderGL(){if(!gl||!voidProg)return;gl.uniform1f(uTime,(performance.now()-glStart)/1000);gl.uniform2f(uRes,voidCanvas.width,voidCanvas.height);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);}
+
+// ═══════════════════════════════════════════════════════════════
+// FACE ENGINE with in-browser AI processing via Anthropic API
+// ═══════════════════════════════════════════════════════════════
+var faceCanvas = document.getElementById('face-canvas');
+var fCtx = faceCanvas.getContext('2d');
+var processedFaces = []; // {canvas} objects ready to draw
+var faceIdx=0, faceAlpha=1, faceMorphing=false, faceHoldStart=0, faceA=null, faceB=null;
+
+function resizeFace(){faceCanvas.width=window.innerWidth;faceCanvas.height=window.innerHeight;}
+
+// Call Claude Vision to get face/eye coordinates
+async function analyzeWithClaude(base64, mimeType) {
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+            { type: 'text', text: 'Return ONLY JSON, no markdown:\n{"faceX":0.0,"faceY":0.0,"faceW":1.0,"faceH":1.0,"eye1X":0.0,"eye1Y":0.0,"eye1R":0.03,"eye2X":0.0,"eye2Y":0.0,"eye2R":0.03,"hasFace":true}\nAll values 0-1 fractions of image dimensions. faceX/Y = top-left of face bounding box. eye1/2 X/Y = center of each eye. R = radius. If no face found set hasFace:false and estimate centers.' }
+          ]
+        }]
+      })
+    });
+    var data = await resp.json();
+    var text = data.content && data.content[0] && data.content[0].text || '{}';
+    return JSON.parse(text.replace(/```json|```/g,'').trim());
+  } catch(e) {
+    log('Claude API: '+e.message);
+    // Return defaults — center face, rough eye positions
+    return {hasFace:true,faceX:0.1,faceY:0.05,faceW:0.8,faceH:0.9,eye1X:0.35,eye1Y:0.35,eye1R:0.06,eye2X:0.65,eye2Y:0.35,eye2R:0.06};
+  }
+}
+
+// Process one image: load → analyze → mirror + remove eyes + remove bg edges
+async function processImage(filename) {
+  return new Promise(async function(resolve) {
+    // Load image
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    var folder = 'installation/images';
+    img.src = REPO_RAW + '/' + folder + '/' + encodeURIComponent(filename);
+
+    await new Promise(function(r){ img.onload=r; img.onerror=r; });
+    if(!img.naturalWidth){ log('Load fail: '+filename); resolve(null); return; }
+
+    log('Analyzing: '+filename);
+
+    // Draw to offscreen canvas for pixel manipulation
+    var W = img.naturalWidth, H = img.naturalHeight;
+    var off = document.createElement('canvas'); off.width=W; off.height=H;
+    var ctx = off.getContext('2d');
+    ctx.drawImage(img,0,0);
+
+    // Get base64 for Claude
+    var b64 = off.toDataURL('image/jpeg',0.85).split(',')[1];
+    var mime = 'image/jpeg';
+
+    // Call Claude Vision
+    var analysis = await analyzeWithClaude(b64, mime);
+    log('Got coords for '+filename);
+
+    // ── Step 1: Remove eyes (paint transparent) ──
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    [[analysis.eye1X, analysis.eye1Y, analysis.eye1R],
+     [analysis.eye2X, analysis.eye2Y, analysis.eye2R]].forEach(function(eye){
+      var cx = eye[0]*W, cy = eye[1]*H, r = Math.max(eye[2]*W, eye[2]*H)*1.5;
+      var grad = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      grad.addColorStop(0.5,'rgba(0,0,0,1)');
+      grad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.ellipse(cx,cy,r,r*0.7,0,0,Math.PI*2); ctx.fill();
+    });
+    ctx.restore();
+
+    // ── Step 2: Rough background removal via luminance + edge detection ──
+    // Sample corner pixels as "background color" and remove similar regions
+    var imgData = ctx.getImageData(0,0,W,H);
+    var d = imgData.data;
+    // Sample 4 corners for bg color
+    var corners = [[0,0],[W-1,0],[0,H-1],[W-1,H-1]];
+    var bgR=0,bgG=0,bgB=0;
+    corners.forEach(function(c){
+      var i=(c[1]*W+c[0])*4;bgR+=d[i];bgG+=d[i+1];bgB+=d[i+2];
+    });
+    bgR/=4;bgG/=4;bgB/=4;
+
+    // Remove background pixels that are close to the corner color
+    for(var i=0;i<d.length;i+=4){
+      var dr=d[i]-bgR, dg=d[i+1]-bgG, db=d[i+2]-bgB;
+      var dist=Math.sqrt(dr*dr+dg*dg+db*db);
+      if(dist < 60){ // threshold
+        d[i+3] = Math.max(0, d[i+3] - Math.floor((60-dist)/60*255));
+      }
+    }
+    ctx.putImageData(imgData,0,0);
+
+    // ── Step 3: Bilateral face mirror (left → right) ──
+    var mirrorCanvas = document.createElement('canvas');
+    mirrorCanvas.width = W; mirrorCanvas.height = H;
+    var mCtx = mirrorCanvas.getContext('2d');
+
+    // Draw base
+    mCtx.drawImage(off,0,0);
+
+    // Mirror left half onto right half
+    mCtx.save();
+    mCtx.translate(W,0); mCtx.scale(-1,1);
+    mCtx.drawImage(off, 0,0,W/2,H, 0,0,W/2,H);
+    mCtx.restore();
+
+    // ── Step 4: Face enlargement if small ──
+    var faceW = analysis.faceW || 0.8;
+    var outputCanvas = document.createElement('canvas');
+    outputCanvas.width = W; outputCanvas.height = H;
+    var oCtx = outputCanvas.getContext('2d');
+
+    if(faceW < 0.45) {
+      // Scale up so face fills ~80% of frame
+      var scale = 0.8 / faceW;
+      var faceCX = (analysis.faceX + analysis.faceW/2)*W;
+      var faceCY = (analysis.faceY + analysis.faceH/2)*H;
+      oCtx.translate(W/2, H/2);
+      oCtx.scale(scale, scale);
+      oCtx.translate(-faceCX, -faceCY);
+      oCtx.drawImage(mirrorCanvas,0,0);
+    } else {
+      oCtx.drawImage(mirrorCanvas,0,0);
+    }
+
+    log('✓ Processed: '+filename);
+    resolve(outputCanvas);
+  });
+}
+
+function drawFace(canvas, alpha) {
+  if(!canvas||alpha<=0)return;
+  var cw=faceCanvas.width, ch=faceCanvas.height;
+  var iw=canvas.width, ih=canvas.height;
+  if(!iw||!ih)return;
+  var scale = Math.max(cw/iw, ch/ih)*0.88;
+  var w=iw*scale, h=ih*scale, x=(cw-w)/2, y=(ch-h)/2;
+  var pulse = 1+0.016*Math.sin(performance.now()*0.0008);
+  fCtx.save();
+  fCtx.globalAlpha = Math.max(0,Math.min(1,alpha));
+  fCtx.translate(cw/2,ch/2); fCtx.scale(pulse,pulse); fCtx.translate(-cw/2,-ch/2);
+  fCtx.drawImage(canvas,x,y,w,h);
+  fCtx.restore();
+}
+
+function renderFaces(now) {
+  fCtx.clearRect(0,0,faceCanvas.width,faceCanvas.height);
+  if(!processedFaces.length)return;
+  if(!faceMorphing){
+    if(!faceA){faceA=processedFaces[0];faceHoldStart=now;}
+    drawFace(faceA,1);
+    if(now-faceHoldStart>FACE_HOLD_MS){
+      faceMorphing=true;
+      faceIdx=(faceIdx+1)%processedFaces.length;
+      faceB=processedFaces[faceIdx];
+      faceAlpha=0;
+    }
+  } else {
+    faceAlpha+=16/FACE_FADE_MS;
+    if(faceAlpha>=1){faceAlpha=1;faceA=faceB;faceB=null;faceMorphing=false;faceHoldStart=now;}
+    drawFace(faceA,1-faceAlpha);
+    drawFace(faceB,faceAlpha);
+  }
+}
+
+// Load and process all faces — one at a time to avoid API rate limits
+async function loadAndProcessFaces() {
+  for(var i=0;i<FACE_FILES.length;i++){
+    var result = await processImage(FACE_FILES[i]);
+    if(result){
+      processedFaces.push(result);
+      // Shuffle on first load so order varies
+      if(processedFaces.length===1){ faceA=processedFaces[0]; faceHoldStart=performance.now(); }
+    }
+    // Small delay between Claude API calls to avoid rate limiting
+    if(i<FACE_FILES.length-1) await new Promise(function(r){setTimeout(r,800);});
+  }
+  log('All faces processed: '+processedFaces.length);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GLITCH / SCANLINE CANVAS OVERLAY — CRT distortion on faces
+// ═══════════════════════════════════════════════════════════════
+var glitchCanvas = document.getElementById('glitch-canvas');
+var gCtx = glitchCanvas.getContext('2d');
+var glitchIntensity = 0;
+var glitchTimer = 0;
+
+function resizeGlitch(){glitchCanvas.width=window.innerWidth;glitchCanvas.height=window.innerHeight;}
+
+function renderGlitch(now) {
+  var W=glitchCanvas.width, H=glitchCanvas.height;
+  gCtx.clearRect(0,0,W,H);
+
+  // ── Scanlines ──
+  gCtx.save();
+  for(var y=0;y<H;y+=3){
+    var alpha = 0.08 + 0.06*Math.sin(y*0.1+now*0.002);
+    gCtx.fillStyle='rgba(0,0,0,'+alpha+')';
+    gCtx.fillRect(0,y,W,1.5);
+  }
+  gCtx.restore();
+
+  // ── CRT curvature vignette ──
+  var grad = gCtx.createRadialGradient(W/2,H/2,H*0.25,W/2,H/2,H*0.85);
+  grad.addColorStop(0,'rgba(0,0,0,0)');
+  grad.addColorStop(1,'rgba(0,0,0,0.72)');
+  gCtx.fillStyle=grad;
+  gCtx.fillRect(0,0,W,H);
+
+  // ── Random glitch events ──
+  if(now-glitchTimer>2000+Math.random()*5000){
+    glitchTimer=now;
+    glitchIntensity=1.0;
+  }
+  if(glitchIntensity>0){
+    var count = Math.floor(glitchIntensity*18);
+    for(var i=0;i<count;i++){
+      var gy = Math.random()*H;
+      var gh = 1+Math.random()*12*glitchIntensity;
+      var gx = (Math.random()-0.5)*80*glitchIntensity;
+      // Read and shift a scanline from face canvas
+      try {
+        var srcData = fCtx.getImageData(0, Math.floor(gy), W, Math.ceil(gh));
+        gCtx.save();
+        gCtx.globalAlpha = 0.8*glitchIntensity;
+        // RGB split
+        gCtx.globalCompositeOperation='screen';
+        gCtx.fillStyle='rgba(255,0,0,0.15)';
+        gCtx.fillRect(gx+2,gy,W,gh);
+        gCtx.fillStyle='rgba(0,0,255,0.15)';
+        gCtx.fillRect(gx-2,gy,W,gh);
+        gCtx.restore();
+        // Horizontal smear block
+        gCtx.save();
+        gCtx.globalAlpha=0.6*glitchIntensity;
+        var blockW=20+Math.random()*200;
+        gCtx.drawImage(faceCanvas, Math.random()*W,gy,blockW,gh, gx+Math.random()*W,gy,blockW,gh);
+        gCtx.restore();
+      } catch(e){}
+    }
+    // Digital corruption blocks
+    for(var b=0;b<Math.floor(glitchIntensity*6);b++){
+      var bx=Math.random()*W, by=Math.random()*H;
+      var bw=10+Math.random()*120, bh=2+Math.random()*20;
+      gCtx.fillStyle='rgba('+(Math.random()>0.5?'255,255,255':'0,255,200')+','+0.15*glitchIntensity+')';
+      gCtx.fillRect(bx,by,bw,bh);
+    }
+    glitchIntensity *= 0.85;
+    if(glitchIntensity<0.01)glitchIntensity=0;
+  }
+
+  // ── Phosphor flicker ──
+  if(Math.random()<0.04){
+    gCtx.save();
+    gCtx.globalAlpha=0.03+Math.random()*0.05;
+    gCtx.fillStyle='#000';
+    gCtx.fillRect(0,0,W,H);
+    gCtx.restore();
+  }
+
+  // ── Horizontal noise lines ──
+  if(Math.random()<0.08){
+    var ny=Math.random()*H;
+    gCtx.save();
+    gCtx.globalAlpha=0.15+Math.random()*0.25;
+    gCtx.strokeStyle='rgba(200,200,255,0.6)';
+    gCtx.lineWidth=0.5;
+    gCtx.beginPath();gCtx.moveTo(0,ny);gCtx.lineTo(W,ny);gCtx.stroke();
+    gCtx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════════════════════════════════
+var audioCtx=null, choirNodes=[], cacophonyNodes=[];
+var masterGain, reverbNode, reverbGain;
+
+function createReverb(seconds, decay) {
+  var conv = audioCtx.createConvolver();
+  var len = audioCtx.sampleRate * seconds;
+  var buf = audioCtx.createBuffer(2,len,audioCtx.sampleRate);
+  for(var ch=0;ch<2;ch++){
+    var d=buf.getChannelData(ch);
+    for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);
+  }
+  conv.buffer=buf;
+  return conv;
+}
+
+// ── CHOIR — strong, prominent AHHH drone ──
+function buildChoir() {
+  var choirMaster = audioCtx.createGain();
+  choirMaster.gain.setValueAtTime(0,audioCtx.currentTime);
+  choirMaster.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime+12);
+
+  var rev = createReverb(6, 1.8);
+  var revG = audioCtx.createGain(); revG.gain.value=0.65;
+  var dryG = audioCtx.createGain(); dryG.gain.value=0.35;
+
+  choirMaster.connect(dryG); dryG.connect(audioCtx.destination);
+  choirMaster.connect(rev);  rev.connect(revG); revG.connect(audioCtx.destination);
+
+  var BASE = 82.4;
+  var voiceConfigs = [
+    {f:BASE,      t:'sawtooth', vowelF:800,  vol:0.16},
+    {f:BASE*1.004,t:'sawtooth', vowelF:820,  vol:0.14},
+    {f:BASE*1.5,  t:'sawtooth', vowelF:950,  vol:0.12},
+    {f:BASE*1.497,t:'sawtooth', vowelF:930,  vol:0.11},
+    {f:BASE*2.0,  t:'sawtooth', vowelF:1100, vol:0.09},
+    {f:BASE*1.998,t:'sawtooth', vowelF:1080, vol:0.08},
+    {f:BASE*2.5,  t:'sawtooth', vowelF:1250, vol:0.07},
+    {f:BASE*0.75, t:'sawtooth', vowelF:600,  vol:0.18},
+    {f:BASE*0.749,t:'sawtooth', vowelF:590,  vol:0.16},
+  ];
+
+  voiceConfigs.forEach(function(cfg,i){
+    var osc=audioCtx.createOscillator(); osc.type=cfg.t; osc.frequency.value=cfg.f;
+
+    // Vibrato
+    var vib=audioCtx.createOscillator(); vib.frequency.value=4.5+i*0.22;
+    var vibG=audioCtx.createGain(); vibG.gain.value=cfg.f*0.002;
+    vib.connect(vibG); vibG.connect(osc.frequency);
+
+    // Breathing LFO
+    var bLFO=audioCtx.createOscillator(); bLFO.frequency.value=0.055+i*0.008;
+    var bAmt=audioCtx.createGain(); bAmt.gain.value=0.022; bLFO.connect(bAmt);
+
+    // Vowel filter
+    var filt=audioCtx.createBiquadFilter();
+    filt.type='bandpass'; filt.frequency.value=cfg.vowelF; filt.Q.value=3.5;
+
+    // Second harmonic enhancer
+    var filt2=audioCtx.createBiquadFilter();
+    filt2.type='bandpass'; filt2.frequency.value=cfg.vowelF*2; filt2.Q.value=2;
+
+    var vG=audioCtx.createGain(); vG.gain.value=cfg.vol;
+    bAmt.connect(vG.gain);
+
+    osc.connect(filt); filt.connect(vG);
+    osc.connect(filt2); filt2.connect(vG);
+    vG.connect(choirMaster);
+    osc.start(); vib.start(); bLFO.start();
+    choirNodes.push(osc,vib,bLFO);
+  });
+  log('Choir: '+voiceConfigs.length+' voices');
+}
+
+// ── CACOPHONY — full FX chain: reverb, delay, pitch, pan ──
+function buildCacophony() {
+  if(!MEDIA_FILES.length){log('No media files');return;}
+
+  // Shared long reverb for cacophony
+  var cRev = createReverb(8, 1.2);
+  var cRevG = audioCtx.createGain(); cRevG.gain.value=0.55;
+  cRev.connect(cRevG); cRevG.connect(audioCtx.destination);
+
+  // Shared feedback delay
+  var delay1 = audioCtx.createDelay(4.0); delay1.delayTime.value=0.37;
+  var delay2 = audioCtx.createDelay(4.0); delay2.delayTime.value=0.61;
+  var delFB1 = audioCtx.createGain(); delFB1.gain.value=0.45;
+  var delFB2 = audioCtx.createGain(); delFB2.gain.value=0.38;
+  var delOut = audioCtx.createGain(); delOut.gain.value=0.3;
+  delay1.connect(delFB1); delFB1.connect(delay1);
+  delay2.connect(delFB2); delFB2.connect(delay2);
+  delay1.connect(delOut); delay2.connect(delOut);
+  delOut.connect(audioCtx.destination);
+  delOut.connect(cRev);
+
+  var shuffled = MEDIA_FILES.slice().sort(function(){return Math.random()-0.5;});
+  var layers = shuffled.slice(0, Math.min(shuffled.length,5));
+
+  layers.forEach(function(filename,i){
+    var startDelay = 800 + i*1800 + Math.random()*2000;
+    setTimeout(function(){
+      try {
+        var audio = new Audio();
+        audio.crossOrigin='anonymous';
+        audio.loop=true;
+        audio.preload='auto';
+        audio.src = REPO_RAW+'/installation/media/'+encodeURIComponent(filename);
+
+        var src = audioCtx.createMediaElementSource(audio);
+
+        // Random pitch shift via playback rate (0.4–1.6x)
+        audio.playbackRate = 0.4 + Math.random()*1.2;
+
+        // Individual gain per layer
+        var layerGain = audioCtx.createGain();
+        layerGain.gain.value = 0.12 + Math.random()*0.18;
+
+        // Panner — spread across stereo field
+        var panner = audioCtx.createStereoPanner();
+        panner.pan.value = -0.8 + Math.random()*1.6;
+
+        // Per-layer bandpass filter for texture
+        var filt = audioCtx.createBiquadFilter();
+        filt.type = Math.random()>0.5 ? 'bandpass' : 'lowpass';
+        filt.frequency.value = 200 + Math.random()*3000;
+        filt.Q.value = 0.5 + Math.random()*4;
+
+        // Per-layer reverb send
+        var revSend = audioCtx.createGain(); revSend.gain.value=0.4+Math.random()*0.4;
+        // Delay send
+        var delaySend = audioCtx.createGain(); delaySend.gain.value=0.2+Math.random()*0.5;
+
+        src.connect(filt);
+        filt.connect(layerGain);
+        layerGain.connect(panner);
+        panner.connect(audioCtx.destination);  // dry
+        panner.connect(revSend); revSend.connect(cRev);
+        panner.connect(delaySend);
+        delaySend.connect(delay1);
+        delaySend.connect(delay2);
+
+        // LFO on pan for slow movement
+        var panLFO = audioCtx.createOscillator();
+        panLFO.frequency.value = 0.02 + Math.random()*0.08;
+        var panAmt = audioCtx.createGain(); panAmt.gain.value=0.6+Math.random()*0.3;
+        panLFO.connect(panAmt); panAmt.connect(panner.pan);
+        panLFO.start();
+        cacophonyNodes.push(panLFO);
+
+        audio.play().then(function(){log('♪ '+filename+' @ '+audio.playbackRate.toFixed(2)+'x');})
+             .catch(function(e){log('✗ '+filename+': '+e.message);});
+        cacophonyNodes.push(audio);
+      } catch(e){ log('Cac err: '+e.message); }
+    }, startDelay);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VOICE ENGINE — sinister, distorted, glitchy, heard above all
+// Uses Web Speech API with heavy Web Audio distortion chain
+// ═══════════════════════════════════════════════════════════════
+var BNA=[
+  {t:'BE NOT AFRAID',l:'en-US'},{t:'NOLI TIMERE',l:'it-IT'},
+  {t:'אַל-תִּירָא',l:'he-IL'},{t:'ΜΗ ΦΟΒΟΥ',l:'el-GR'},
+  {t:'لَا تَخَفْ',l:'ar-SA'},{t:"N'AYEZ PAS PEUR",l:'fr-FR'},
+  {t:'FÜRCHTE DICH NICHT',l:'de-DE'},{t:'НЕ БОЙСЯ',l:'ru-RU'},
+  {t:'恐れるな',l:'ja-JP'},{t:'ÄLÄ PELKÄÄ',l:'fi-FI'},
+  {t:'不要害怕',l:'zh-CN'},{t:'NU TE TEME',l:'ro-RO'},
+];
+
+var REV=[
+  "I am Alpha and Omega. The first, and the last.",
+  "Fear not. I am he that liveth, and was dead.",
+  "Behold I am alive for evermore. And I have the keys of hell and of death.",
+  "I know thy works, and where thou dwellest — even where Satan's seat is.",
+  "He that hath an ear. Let him hear what the Spirit saith unto the churches.",
+  "I will give thee a crown of life.",
+  "And I looked. And behold a pale horse. And his name that sat on him was Death. And Hell followed with him.",
+  "And the stars of heaven fell unto the earth.",
+  "And the kings of the earth, and the great men, and the rich men — hid themselves in the dens and in the rocks.",
+  "And said to the mountains and rocks: Fall on us. And hide us from the face of him that sitteth on the throne.",
+  "Holy, holy, holy — Lord God Almighty. Which was, and is, and is to come.",
+  "And I saw as it were a sea of glass mingled with fire.",
+  "Worthy is the Lamb that was slain to receive power, and riches, and wisdom, and strength.",
+  "And there was war in heaven. Michael and his angels fought against the dragon.",
+  "And the great dragon was cast out — that old serpent, called the Devil, and Satan.",
+  "And his tail drew the third part of the stars of heaven. And did cast them to the earth.",
+  "And I stood upon the sand of the sea. And saw a beast rise up out of the sea.",
+  "And they worshipped the dragon. Which gave power unto the beast. Saying: Who is like unto the beast?",
+  "And he causeth all — both small and great, rich and poor — to receive a mark.",
+  "And the fourth angel poured out his vial upon the sun. And power was given unto him to scorch men with fire.",
+  "And I saw a great white throne, and him that sat on it — from whose face the earth and the heaven fled away.",
+  "And the books were opened. And another book was opened — which is the book of life.",
+  "And whosoever was not found written in the book of life — was cast into the lake of fire.",
+  "And I saw a new heaven and a new earth. For the first heaven and the first earth were passed away.",
+  "And God shall wipe away all tears from their eyes. And there shall be no more death.",
+  "Behold, I come quickly. And my reward is with me.",
+  "I am Alpha and Omega — the beginning and the end — the first and the last.",
+];
+
+var bnaIdx=0, revIdx=0, speechActive=false, voiceTO=null;
+var voiceEl=document.getElementById('voice-text');
+var revelEl=document.getElementById('revelation-text');
+
+// Build a sinister distortion chain for voice
+var voiceDistChain = null;
+function buildVoiceChain() {
+  var masterVoice = audioCtx.createGain();
+  masterVoice.gain.value = 2.8; // loud — heard above everything
+
+  // Heavy waveshaper distortion
+  var waveShaper = audioCtx.createWaveShaper();
+  var curve = new Float32Array(512);
+  for(var i=0;i<512;i++){
+    var x = (i*2/512)-1;
+    curve[i] = (Math.PI+400)*x/(Math.PI+400*Math.abs(x));
+  }
+  waveShaper.curve = curve;
+  waveShaper.oversample = '4x';
+
+  // Ring modulator effect (tremolo/glitch)
+  var ringMod = audioCtx.createGain();
+  var ringOsc = audioCtx.createOscillator();
+  ringOsc.frequency.value = 8; // 8Hz tremolo
+  var ringAmt = audioCtx.createGain(); ringAmt.gain.value=0.25;
+  ringOsc.connect(ringAmt); ringAmt.connect(ringMod.gain);
+  ringOsc.start();
+
+  // Pitch down via subtle detune oscillator feedback
+  var pitchFilter = audioCtx.createBiquadFilter();
+  pitchFilter.type='lowpass'; pitchFilter.frequency.value=1200; pitchFilter.Q.value=8;
+
+  // Short metallic reverb
+  var vRev = createReverb(3,3.5);
+  var vRevG = audioCtx.createGain(); vRevG.gain.value=0.7;
+
+  // Compressor to keep voice on top
+  var comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.value=-12; comp.knee.value=3;
+  comp.ratio.value=8; comp.attack.value=0.002; comp.release.value=0.15;
+
+  // Chain: input → distort → ring mod → filter → reverb → compressor → out
+  masterVoice.connect(waveShaper);
+  waveShaper.connect(ringMod);
+  ringMod.connect(pitchFilter);
+  pitchFilter.connect(comp);
+  pitchFilter.connect(vRev); vRev.connect(vRevG); vRevG.connect(comp);
+  comp.connect(audioCtx.destination);
+
+  voiceDistChain = masterVoice;
+
+  // Attempt to route speech synthesis through audio graph
+  // (not possible in all browsers — we use MediaStreamDestination as workaround)
+  try {
+    var dest = audioCtx.createMediaStreamDestination();
+    masterVoice.connect(dest);
+  } catch(e){}
+}
+
+function speakBNA(){
+  if(!speechActive)return;
+  var phrase=BNA[bnaIdx%BNA.length]; bnaIdx++;
+
+  // Flash the text with glitch
+  voiceEl.textContent=phrase.t;
+  voiceEl.classList.remove('voice-active');
+  void voiceEl.offsetWidth;
+  voiceEl.classList.add('voice-active');
+
+  // Show revelation verse
+  var verse=REV[revIdx%REV.length]; revIdx++;
+  revelEl.textContent=verse;
+  revelEl.style.color='rgba(201,168,76,0.32)';
+  setTimeout(function(){revelEl.style.color='rgba(201,168,76,0)';},9000);
+
+  // Force male voice + slowest rate + lowest pitch via speechSynthesis
+  if('speechSynthesis' in window){
+    window.speechSynthesis.cancel();
+    // Wait for voices to load
+    var trySpeak = function(){
+      var voices = window.speechSynthesis.getVoices();
+      var utt = new SpeechSynthesisUtterance(verse); // speak the verse, not just BNA
+      utt.rate  = 0.4;  // very slow
+      utt.pitch = 0;    // lowest possible
+      utt.volume = 1.0;
+      utt.lang  = 'en-US';
+
+      // Pick deepest male voice available
+      var malePreference = ['Google UK English Male','Microsoft David','Alex','Daniel','Fred','Ralph','Albert'];
+      var picked = null;
+      for(var mp=0;mp<malePreference.length;mp++){
+        for(var v=0;v<voices.length;v++){
+          if(voices[v].name.indexOf(malePreference[mp])>-1){ picked=voices[v]; break; }
+        }
+        if(picked)break;
+      }
+      // Fallback: any male-sounding voice
+      if(!picked){ voices.forEach(function(v){ if(v.name.toLowerCase().indexOf('male')>-1)picked=v; }); }
+      if(!picked && voices.length){ picked=voices[0]; }
+      if(picked) utt.voice=picked;
+
+      window.speechSynthesis.speak(utt);
+    };
+    if(window.speechSynthesis.getVoices().length){trySpeak();}
+    else{window.speechSynthesis.onvoiceschanged=trySpeak;}
+  }
+
+  // Trigger glitch burst on voice
+  glitchIntensity = 0.8 + Math.random()*0.5;
+
+  voiceTO=setTimeout(speakBNA, 22000+Math.random()*20000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STOP ALL
+// ═══════════════════════════════════════════════════════════════
+function stopAll(){
+  glRunning=false; speechActive=false;
+  if(voiceTO){clearTimeout(voiceTO);voiceTO=null;}
+  if('speechSynthesis' in window)window.speechSynthesis.cancel();
+  choirNodes.forEach(function(n){try{if(typeof n.stop==='function')n.stop();}catch(e){}});
+  choirNodes=[];
+  cacophonyNodes.forEach(function(n){
+    try{if(typeof n.stop==='function')n.stop();}catch(e){}
+    try{if(n.pause){n.pause();n.src='';}}catch(e){}
+  });
+  cacophonyNodes=[];
+  if(audioCtx){try{audioCtx.close();}catch(e){}audioCtx=null;}
+}
+window.stopAll=stopAll;
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════════
+function loop(now){
+  if(!glRunning)return;
+  renderGL();
+  renderFaces(now);
+  renderGlitch(now);
+  requestAnimationFrame(loop);
+}
+
+function resize(){
+  resizeGL(); resizeFace(); resizeGlitch();
+}
+window.addEventListener('resize',resize,{passive:true});
+resize();
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO-START — no landing screen
+// Start immediately, audio starts on first click/touch anywhere
+// ═══════════════════════════════════════════════════════════════
+var audioStarted = false;
+
+function startAudio(){
+  if(audioStarted)return; audioStarted=true;
+  document.removeEventListener('click',startAudio);
+  document.removeEventListener('touchend',startAudio);
+
+  audioCtx = new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+
+  buildChoir();
+  buildVoiceChain();
+  buildCacophony();
+
+  speechActive=true;
+  setTimeout(speakBNA, 4000);
+  log('Audio started');
+}
+
+// Visuals start immediately — no click needed
+if(initGL()){
+  glRunning=true;
+  requestAnimationFrame(loop);
+}
+
+// Load and process faces (starts AI pipeline immediately)
+loadAndProcessFaces();
+
+// Audio requires user gesture — attach to first interaction
+document.addEventListener('click', startAudio);
+document.addEventListener('touchend', startAudio);
+
+if(window===window.top) history.pushState({installation:true},'','#active');
+</script>
+</body>
+</html>
