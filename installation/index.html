@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BE NOT AFRAID — Esoteric Tradition</title>
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;}
+  canvas{position:fixed;inset:0;width:100%;height:100%;}
+  #void-canvas{z-index:1;}
+  #face-canvas{z-index:2;}
+  #smoke-canvas{z-index:3;}   /* void smoke bleeds through faces */
+  #crt-canvas  {z-index:4;}   /* heavy CRT/glitch on top */
+  #tri-canvas  {z-index:5;}   /* glowing triangle */
+
+  #footer-img{
+    position:fixed;bottom:-15%;left:0;right:0;
+    width:100%;height:auto;z-index:20;pointer-events:none;
+    filter:grayscale(1) sepia(1) saturate(4) hue-rotate(300deg) brightness(0.85) contrast(1.3);
+  }
+  #back-btn{
+    position:fixed;top:14px;left:16px;z-index:25;
+    font-family:serif;font-size:clamp(0.4rem,0.9vw,0.55rem);letter-spacing:0.3em;
+    color:rgba(180,0,0,0.45);background:rgba(0,0,0,0.85);
+    border:1px solid rgba(180,0,0,0.18);padding:0.4em 0.9em;
+    cursor:pointer;transition:all 0.3s;
+  }
+  #back-btn:hover{color:rgba(255,60,60,0.9);border-color:rgba(200,0,0,0.5);}
+  /* Both text layers sit ABOVE tri-canvas (z-index 5) and positioned away from triangle centre */
+  #voice-text{
+    position:fixed;bottom:10vh;left:50%;transform:translateX(-50%);
+    z-index:22;text-align:center;font-family:serif;
+    letter-spacing:0.4em;text-transform:uppercase;
+    font-size:clamp(1.4rem,3.5vw,3.2rem);
+    color:rgba(255,0,0,0);pointer-events:none;white-space:nowrap;
+    /* Strong outline + drop shadow so text reads over any background */
+    paint-order:stroke fill;
+    -webkit-text-stroke:0px;
+  }
+  /* Revelation text: pushed to upper third so it never overlaps the centred triangle */
+  #revelation-text{
+    position:fixed;top:22%;left:50%;transform:translate(-50%,0);
+    z-index:22;width:62vw;max-width:720px;text-align:center;
+    font-family:serif;font-style:italic;
+    font-size:clamp(0.68rem,1.25vw,1rem);
+    color:rgba(200,0,0,0);line-height:2;letter-spacing:0.06em;
+    pointer-events:none;transition:color 4s ease;
+  }
+  #status{display:none;}
+  @keyframes voiceFlash{
+    0%  {color:rgba(255,0,0,0);text-shadow:none;}
+    5%  {
+      color:rgba(255,60,60,1);
+      text-shadow:
+        2px 2px 0 rgba(0,0,0,0.95),
+        -1px -1px 0 rgba(0,0,0,0.95),
+        1px -1px 0 rgba(0,0,0,0.95),
+        -1px 1px 0 rgba(0,0,0,0.95),
+        0 0 25px rgba(255,0,0,0.9),
+        0 0 55px rgba(180,0,0,0.5);
+    }
+    20% {
+      color:rgba(230,0,0,0.9);
+      text-shadow:
+        2px 2px 0 rgba(0,0,0,0.9),
+        -1px -1px 0 rgba(0,0,0,0.9),
+        0 0 20px rgba(200,0,0,0.7);
+    }
+    85% {
+      color:rgba(190,0,0,0.75);
+      text-shadow:
+        2px 2px 0 rgba(0,0,0,0.85),
+        -1px -1px 0 rgba(0,0,0,0.85),
+        0 0 15px rgba(160,0,0,0.5);
+    }
+    100%{color:rgba(255,0,0,0);text-shadow:none;}
+  }
+  .voice-active{animation:voiceFlash 5.5s ease forwards !important;}
+</style>
+</head>
+<body>
+<button id="back-btn" onclick="goBack()">&#8592; Back</button>
+<canvas id="void-canvas"></canvas>
+<canvas id="face-canvas"></canvas>
+<canvas id="smoke-canvas"></canvas>
+<canvas id="crt-canvas"></canvas>
+<canvas id="tri-canvas"></canvas>
+<img id="footer-img" src="" alt="" crossorigin="anonymous"/>
+<div id="voice-text"></div>
+<div id="revelation-text"></div>
+<div id="status"></div>
+
+<script>
+'use strict';
+
+var REPO='https://raw.githubusercontent.com/matronthorn/EsotericTradition/main';
+var AKEY='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';
+
+// Priority images always have one showing — listed first, given extra weight
+var PRIORITY_FILES=[
+  'replicate-prediction-4ep21mj4tdrga0chcg9vzbgw8m.png',
+  '1000037464_20240818115945337.png',
+  'replicate-prediction-dfy0eprbcdrga0chcgbsh629x0.png',
+];
+var REGULAR_FILES=[
+  'EVvtL02WoAEi_5b.jpg',
+  'images (25).jpeg','images (26).jpeg','images (27).jpeg',
+  'images (28).jpeg','images (29).jpeg','images (30).jpeg',
+  'images (31).jpeg','images (32).jpeg','images (33).jpeg',
+  's-l1200.jpg','2b74c6fa54cc54dea9e3.jpg',
+  'bella-1-59e55973b9a74.jpg','f9231e0bdcf3292fb9f2a.jpg',
+];
+var ALL_FACE_FILES=PRIORITY_FILES.concat(REGULAR_FILES);
+
+var MEDIA_FILES=[
+  'RDT_20260408_085401.mp4','RDT_20260408_084626.mp4','RDT_20260408_084521.mp4',
+  'RDT_20260408_081748.mp4','RDT_20260408_081553.mp4','RDT_20260408_080207.mp4',
+  'RDT_20260408_081628.mp4','RDT_20260408_080223.mp4','RDT_20260408_080042.mp4',
+  'RDT_20260408_075802.mp4','RDT_20260408_075621.mp4',
+];
+
+var FOOTER_IMG=REPO+'/installation/elements/temp_20260227093601032.png';
+var FACE_HOLD_MS=9000, FACE_FADE_MS=3000;
+function log(m){console.log(m);}
+
+// ─── AUDIO KILL ───────────────────────────────────────────────
+var _audioCtxRef=null,_allAudioElements=[],_allOscillators=[];
+function killAllAudio(){
+  try{if('speechSynthesis' in window)window.speechSynthesis.cancel();}catch(e){}
+  var els=_allAudioElements.slice();
+  for(var i=0;i<els.length;i++){try{els[i].pause();els[i].src='';els[i].load();}catch(e){}}
+  _allAudioElements=[];
+  var oscs=_allOscillators.slice();
+  for(var i=0;i<oscs.length;i++){try{oscs[i].stop(0);}catch(e){}}
+  _allOscillators=[];
+  if(_audioCtxRef){try{_audioCtxRef.close();}catch(e){}}_audioCtxRef=null;
+}
+window.addEventListener('pagehide',killAllAudio);
+window.addEventListener('beforeunload',killAllAudio);
+window.addEventListener('unload',killAllAudio);
+document.addEventListener('visibilitychange',function(){if(document.hidden)killAllAudio();});
+window.addEventListener('popstate',function(){killAllAudio();stopAll();});
+window.stopAll=function(){killAllAudio();stopAll();};
+window.closeAudio=window.killAllAudio=killAllAudio;
+
+function goBack(){
+  killAllAudio();
+  try{if(window.parent&&window.parent!==window&&window.parent.closeInstallation){window.parent.closeInstallation();return;}}catch(e){}
+  if(history.length>1)history.back();else window.close();
+}
+
+(function(){
+  var fi=document.getElementById('footer-img');
+  fi.src=FOOTER_IMG;fi.onerror=function(){fi.style.display='none';};
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// WEBGL VOID — red/black implosion field
+// ═══════════════════════════════════════════════════════════════
+var voidCanvas=document.getElementById('void-canvas');
+var gl=voidCanvas.getContext('webgl')||voidCanvas.getContext('experimental-webgl');
+var voidProg,uTime,uRes,glStart,glRunning=false;
+
+var VS='attribute vec2 a;void main(){gl_Position=vec4(a,0,1);}';
+var FS=[
+'precision highp float;',
+'uniform float u_time;uniform vec2 u_res;',
+'vec2 h2(vec2 p){p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));return -1.0+2.0*fract(sin(p)*43758.5453);}',
+'float gn(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.0-2.0*f);return mix(mix(dot(h2(i),f),dot(h2(i+vec2(1,0)),f-vec2(1,0)),u.x),mix(dot(h2(i+vec2(0,1)),f-vec2(0,1)),dot(h2(i+vec2(1,1)),f-vec2(1,1)),u.x),u.y);}',
+'float fbm(vec2 p,float t){float v=0.,a=0.55;mat2 r=mat2(.8,.6,-.6,.8);for(int i=0;i<8;i++){v+=a*gn(p);p=r*p*2.1+vec2(100.)+vec2(t*.04,t*.025);a*=0.48;}return v;}',
+'void main(){',
+'  vec2 uv=(gl_FragCoord.xy-u_res*.5)/min(u_res.x,u_res.y);',
+'  float t=u_time,r=length(uv),ang=atan(uv.y,uv.x);',
+'  float impl=0.11*sin(r*5.0-t*0.8)*(1.2-r);',
+'  float twist=0.42*sin(t*0.09)*exp(-r*1.15);',
+'  vec2 w=vec2((r+impl)*cos(ang+twist),(r+impl)*sin(ang+twist));',
+'  float n1=fbm(w*2.6+vec2(t*.045,0.),t);',
+'  float n2=fbm(w*2.6+vec2(0.,t*.038)+vec2(5.2,1.1),t*1.1);',
+'  float n3=fbm(w*2.6+vec2(-t*.028,t*.02)+vec2(10.5,6.8),t*.85);',
+'  float st=mix(gn(uv*80.+vec2(t*4.0,t*2.8)),gn(uv*170.+vec2(-t*5.5,t*4.8)),0.4)*0.09;',
+'  float lum=((n1*.5+.5)*.55+(n2*.5+.5)*.3+(n3*.5+.5)*.15);',
+'  vec3 col=vec3(pow(lum,.7)*.95, pow(lum,3.5)*.03, pow(lum,4.5)*.01);',
+'  float vig=1.0-smoothstep(.18,.88,r*(1.0+0.12*sin(t*.17)));',
+'  col*=vig*1.2;col+=st*vec3(.7,0.,0.);',
+'  col+=0.06*sin(r*8.-t*1.7)*exp(-r*1.4)*vec3(1.,0.,0.);',
+'  col*=.88+.12*sin(gl_FragCoord.y*2.4+t*4.5);',
+'  col=pow(clamp(col,0.,1.),vec3(1.15,1.5,1.5));',
+'  gl_FragColor=vec4(col,1.);',
+'}'
+].join('');
+
+function cSh(t,s){var sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);return sh;}
+function initGL(){
+  if(!gl)return false;
+  var p=gl.createProgram();
+  gl.attachShader(p,cSh(gl.VERTEX_SHADER,VS));gl.attachShader(p,cSh(gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS)){log('GL:'+gl.getProgramInfoLog(p));return false;}
+  voidProg=p;var b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(p,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  uTime=gl.getUniformLocation(p,'u_time');uRes=gl.getUniformLocation(p,'u_res');
+  gl.useProgram(p);glStart=performance.now();return true;
+}
+function resizeGL(){voidCanvas.width=window.innerWidth;voidCanvas.height=window.innerHeight;if(gl)gl.viewport(0,0,voidCanvas.width,voidCanvas.height);}
+function renderGL(){if(!gl||!voidProg)return;gl.uniform1f(uTime,(performance.now()-glStart)/1000);gl.uniform2f(uRes,voidCanvas.width,voidCanvas.height);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);}
+
+// ═══════════════════════════════════════════════════════════════
+// FACE ENGINE — seamless 4-layer blending, no seams
+// Key fix: ALL layers use fullscreen radial fade, never hard edges
+// Mirror operations never split at centre — always fill full canvas
+// ═══════════════════════════════════════════════════════════════
+var faceCanvas=document.getElementById('face-canvas');
+var fCtx=faceCanvas.getContext('2d');
+var faceSets=[],setIdx=0,faceAlpha=1,faceMorphing=false,faceHoldStart=0,setA=null,setB=null;
+// Track whether a priority image is in current set
+var priorityIndices=new Set([0,1,2]); // first 3 are priority
+
+function resizeFace(){faceCanvas.width=window.innerWidth;faceCanvas.height=window.innerHeight;}
+
+async function claudeAnalyze(b64){
+  try{
+    var r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':AKEY,
+               'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+          {type:'text',text:'Return ONLY valid JSON, no markdown:\n{"hasFace":true,"faceX":0.15,"faceY":0.05,"faceW":0.7,"faceH":0.85,"eye1X":0.35,"eye1Y":0.38,"eye1R":0.06,"eye2X":0.65,"eye2Y":0.38,"eye2R":0.06,"bgR":245,"bgG":240,"bgB":238}\nAll x/y/w/h/r are 0.0-1.0 fractions of image. bgR/G/B are 0-255 integers for dominant background. Precise eye positions.'}
+        ]}]})
+    });
+    if(!r.ok)throw new Error('HTTP'+r.status);
+    var d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    var txt=((d.content&&d.content[0]&&d.content[0].text)||'{}').replace(/```json|```/g,'').trim();
+    return JSON.parse(txt);
+  }catch(e){
+    log('Vision fallback:'+e.message);
+    return{hasFace:true,faceX:0.1,faceY:0.05,faceW:0.8,faceH:0.88,
+           eye1X:0.34,eye1Y:0.37,eye1R:0.065,eye2X:0.66,eye2Y:0.37,eye2R:0.065,
+           bgR:248,bgG:244,bgB:240};
+  }
+}
+
+function duotone(imgData){
+  var d=imgData.data;
+  for(var i=0;i<d.length;i+=4){
+    if(d[i+3]<8)continue;
+    var lum=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)/255;
+    var t=Math.pow(lum,0.78);
+    d[i]=Math.round(t*215);d[i+1]=Math.round(t*7);d[i+2]=Math.round(t*7);
+  }
+}
+
+// Seamless edge fade — heavy radial mask, no hard borders anywhere
+// The fade is aggressive so layers melt into each other and the void
+function applySeamlessFade(ctx, W, H){
+  ctx.save();
+  ctx.globalCompositeOperation='destination-in';
+
+  // Main radial — centre fully opaque, edges fully transparent
+  var cx=W/2, cy=H/2;
+  var innerR=Math.min(W,H)*0.08;
+  var outerR=Math.max(W,H)*0.78; // fade begins early, well before edges
+  var grad=ctx.createRadialGradient(cx,cy,innerR,cx,cy,outerR);
+  grad.addColorStop(0,  'rgba(0,0,0,1)');
+  grad.addColorStop(0.55,'rgba(0,0,0,0.95)');
+  grad.addColorStop(0.75,'rgba(0,0,0,0.7)');
+  grad.addColorStop(0.88,'rgba(0,0,0,0.3)');
+  grad.addColorStop(1,  'rgba(0,0,0,0)');
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.restore();
+}
+
+// Build 4 seamless mirror variants
+// FIX: No layer splits the canvas at exact centre — all mirrors fill the full canvas
+// then get faded so the axis is invisible
+function buildFourLayers(src, doInvert){
+  var W=src.width, H=src.height;
+
+  function make(drawFn){
+    var c=document.createElement('canvas');c.width=W;c.height=H;
+    var ctx=c.getContext('2d');
+    drawFn(ctx,W,H);
+    applySeamlessFade(ctx,W,H); // always apply seamless fade
+    return c;
+  }
+
+  // 1. Left→right mirror: draw full image, then draw left half mirrored over right
+  //    Scale the left half to fill the full right side so no seam at centre
+  var L1=make(function(ctx,W,H){
+    ctx.drawImage(src,0,0,W,H);
+    // Draw mirrored left half scaled to fill entire right half
+    ctx.save();
+    ctx.translate(W,0);ctx.scale(-1,1);
+    ctx.drawImage(src,0,0,W/2,H, 0,0,W,H); // source: left half → dest: full width (scaled)
+    ctx.restore();
+  });
+
+  // 2. Right→left mirror: draw full image, mirror right half to fill entire left side
+  var L2=make(function(ctx,W,H){
+    ctx.drawImage(src,0,0,W,H);
+    ctx.save();
+    ctx.scale(-1,1);
+    ctx.drawImage(src,W/2,0,W/2,H, -W,0,W,H); // source: right half → dest: full width
+    ctx.restore();
+  });
+
+  // 3. Top→bottom mirror: draw full image, mirror top half to fill full bottom
+  var L3=make(function(ctx,W,H){
+    ctx.drawImage(src,0,0,W,H);
+    ctx.save();
+    ctx.translate(0,H);ctx.scale(1,-1);
+    ctx.drawImage(src,0,0,W,H/2, 0,0,W,H); // top half scaled to full height
+    ctx.restore();
+  });
+
+  // 4. 4-quadrant kaleidoscope — face repeated and mirrored in all 4 corners
+  //    Each quadrant scaled to fill its quarter, so no edge seams
+  var L4=make(function(ctx,W,H){
+    var hw=W/2,hh=H/2;
+    // Top-left: normal
+    ctx.drawImage(src,0,0,W,H,  0,0,hw,hh);
+    // Top-right: flipped H
+    ctx.save();ctx.translate(W,0);ctx.scale(-1,1);
+    ctx.drawImage(src,0,0,W,H,  0,0,hw,hh);ctx.restore();
+    // Bottom-left: flipped V
+    ctx.save();ctx.translate(0,H);ctx.scale(1,-1);
+    ctx.drawImage(src,0,0,W,H,  0,0,hw,hh);ctx.restore();
+    // Bottom-right: flipped both
+    ctx.save();ctx.translate(W,H);ctx.scale(-1,-1);
+    ctx.drawImage(src,0,0,W,H,  0,0,hw,hh);ctx.restore();
+    // Random invert
+    if(doInvert){
+      var id=ctx.getImageData(0,0,W,H);var dd=id.data;
+      for(var i=0;i<dd.length;i+=4){
+        if(dd[i+3]<8)continue;
+        dd[i]=255-dd[i];dd[i+1]=Math.min(30,255-dd[i+1]);dd[i+2]=Math.min(30,255-dd[i+2]);
+      }
+      ctx.putImageData(id,0,0);
+    }
+  });
+
+  return[L1,L2,L3,L4];
+}
+
+async function processImage(filename, isPriority){
+  return new Promise(async function(resolve){
+    var img=new Image();img.crossOrigin='anonymous';
+    img.src=REPO+'/installation/images/'+encodeURIComponent(filename);
+    var ok=await new Promise(function(r){img.onload=function(){r(true);};img.onerror=function(){log('Fail:'+filename);r(false);};});
+    if(!ok||!img.naturalWidth){resolve(null);return;}
+
+    log('Proc: '+filename);
+    var W=img.naturalWidth,H=img.naturalHeight;
+    var work=document.createElement('canvas');work.width=W;work.height=H;
+    var wCtx=work.getContext('2d');wCtx.drawImage(img,0,0);
+
+    var sc=Math.min(1,600/Math.max(W,H));
+    var sm=document.createElement('canvas');sm.width=Math.round(W*sc);sm.height=Math.round(H*sc);
+    sm.getContext('2d').drawImage(img,0,0,sm.width,sm.height);
+    var b64=sm.toDataURL('image/jpeg',0.82).split(',')[1];
+
+    var coords=await claudeAnalyze(b64);
+
+    // Background removal
+    var raw=wCtx.getImageData(0,0,W,H);var d=raw.data;
+    function px(x,y){var i=(Math.min(y,H-1)*W+Math.min(x,W-1))*4;return[d[i],d[i+1],d[i+2]];}
+    var cs=[px(0,0),px(W-1,0),px(0,H-1),px(W-1,H-1),px(W>>1,0),px(0,H>>1),px(W-1,H>>1),px(W>>1,H-1)];
+    var sr=0,sg=0,sb=0;cs.forEach(function(c){sr+=c[0];sg+=c[1];sb+=c[2];});
+    sr=Math.round(sr/cs.length*.55+(coords.bgR||245)*.45);
+    sg=Math.round(sg/cs.length*.55+(coords.bgG||240)*.45);
+    sb=Math.round(sb/cs.length*.55+(coords.bgB||238)*.45);
+    var thresh=65;
+    for(var i=0;i<d.length;i+=4){
+      var dr=d[i]-sr,dg=d[i+1]-sg,db=d[i+2]-sb;
+      var dist=Math.sqrt(dr*dr+dg*dg+db*db);
+      if(dist<thresh){var soft=1-(dist/thresh);d[i+3]=Math.max(0,Math.floor(d[i+3]*(1-soft*soft)));}
+    }
+    wCtx.putImageData(raw,0,0);
+
+    // Eye removal
+    wCtx.save();wCtx.globalCompositeOperation='destination-out';
+    [[coords.eye1X,coords.eye1Y,coords.eye1R],[coords.eye2X,coords.eye2Y,coords.eye2R]].forEach(function(e){
+      var cx=e[0]*W,cy=e[1]*H,rx=Math.max(e[2]*W*1.8,22),ry=rx*0.6;
+      var g=wCtx.createRadialGradient(cx,cy,0,cx,cy,rx);
+      g.addColorStop(0.4,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');
+      wCtx.fillStyle=g;wCtx.beginPath();wCtx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);wCtx.fill();
+    });
+    wCtx.restore();
+
+    // Face scale
+    if(coords.hasFace&&coords.faceW&&coords.faceW<0.45){
+      var fsc=0.8/coords.faceW,fcx=(coords.faceX+coords.faceW/2)*W,fcy=(coords.faceY+(coords.faceH||0.85)/2)*H;
+      var sc2=document.createElement('canvas');sc2.width=W;sc2.height=H;
+      var sc2c=sc2.getContext('2d');sc2c.save();sc2c.translate(W/2,H/2);sc2c.scale(fsc,fsc);sc2c.translate(-fcx,-fcy);sc2c.drawImage(work,0,0);sc2c.restore();
+      work=sc2;wCtx=sc2.getContext('2d');
+    }
+
+    // Duotone
+    var dt=wCtx.getImageData(0,0,work.width,work.height);
+    duotone(dt);wCtx.putImageData(dt,0,0);
+
+    var doInvert=Math.random()<0.38;
+    var layers=buildFourLayers(work,doInvert);
+    log('Done: '+filename);
+    resolve({layers:layers, isPriority:!!isPriority});
+  });
+}
+
+// Draw one layer — fills viewport from centre, no edge hard-stops
+function drawLayer(canvas, alpha, blend, scaleMult){
+  if(!canvas||alpha<=0)return;
+  var cw=faceCanvas.width,ch=faceCanvas.height;
+  var iw=canvas.width,ih=canvas.height;if(!iw||!ih)return;
+  var s=Math.max(cw/iw,ch/ih)*(scaleMult||1.0);
+  var w=iw*s,h=ih*s,x=(cw-w)/2,y=(ch-h)/2;
+  var pulse=1+0.012*Math.sin(performance.now()*0.0007);
+  fCtx.save();
+  fCtx.globalAlpha=Math.max(0,Math.min(1,alpha));
+  fCtx.globalCompositeOperation=blend||'source-over';
+  fCtx.translate(cw/2,ch/2);fCtx.scale(pulse,pulse);fCtx.translate(-cw/2,-ch/2);
+  fCtx.drawImage(canvas,x,y,w,h);
+  fCtx.restore();
+}
+
+function drawSet(set,alpha){
+  if(!set||!set.layers)return;
+  var l=set.layers;
+  // Priority images shown slightly brighter
+  var boost=set.isPriority?1.15:1.0;
+  drawLayer(l[0], Math.min(1,alpha*0.78*boost), 'source-over', 1.0);
+  drawLayer(l[1], Math.min(1,alpha*0.55*boost), 'screen',      1.05);
+  drawLayer(l[2], Math.min(1,alpha*0.42*boost), 'screen',      0.97);
+  drawLayer(l[3], Math.min(1,alpha*0.32*boost), 'overlay',     1.08);
+}
+
+// Ensure at least one priority set visible — build display queue with priority guaranteed
+function buildDisplayQueue(){
+  if(faceSets.length===0)return[];
+  var pSets=faceSets.filter(function(s){return s.isPriority;});
+  var rSets=faceSets.filter(function(s){return!s.isPriority;});
+  if(pSets.length===0)return faceSets.slice();
+  if(rSets.length===0)return pSets.slice();
+  // GUARANTEE: each priority image appears once per full rotation
+  // Pattern: [priority, regular, regular, priority, regular, ...]
+  // If more regulars than 2-per-priority, spread them evenly
+  var queue=[];
+  var regularsPerPriority=Math.max(1,Math.floor(rSets.length/pSets.length));
+  var ri=0;
+  // Shuffle regular sets for variety
+  var shuffledR=rSets.slice().sort(function(){return Math.random()-0.5;});
+  for(var pi=0;pi<pSets.length;pi++){
+    queue.push(pSets[pi]);
+    // Insert regulars between each priority
+    for(var k=0;k<regularsPerPriority&&ri<shuffledR.length;k++){
+      queue.push(shuffledR[ri++]);
+    }
+  }
+  // Append any remaining regulars
+  while(ri<shuffledR.length)queue.push(shuffledR[ri++]);
+  return queue;
+}
+var displayQueue=[];
+
+function renderFaces(now){
+  fCtx.clearRect(0,0,faceCanvas.width,faceCanvas.height);
+  if(!displayQueue.length)return;
+  if(!faceMorphing){
+    if(!setA){setA=displayQueue[0];faceHoldStart=now;}
+    drawSet(setA,1.0);
+    if(now-faceHoldStart>FACE_HOLD_MS){
+      faceMorphing=true;setIdx=(setIdx+1)%displayQueue.length;setB=displayQueue[setIdx];faceAlpha=0;
+    }
+  }else{
+    faceAlpha+=16/FACE_FADE_MS;
+    if(faceAlpha>=1){faceAlpha=1;setA=setB;setB=null;faceMorphing=false;faceHoldStart=now;}
+    drawSet(setA,1-faceAlpha);
+    if(setB)drawSet(setB,faceAlpha);
+  }
+}
+
+async function loadAndProcess(){
+  // Process priority first
+  for(var i=0;i<ALL_FACE_FILES.length;i++){
+    var isPri=i<PRIORITY_FILES.length;
+    var set=await processImage(ALL_FACE_FILES[i],isPri);
+    if(set){
+      faceSets.push(set);
+      displayQueue=buildDisplayQueue();
+      if(displayQueue.length===1){setA=displayQueue[0];faceHoldStart=performance.now();}
+    }
+    if(i<ALL_FACE_FILES.length-1)await new Promise(function(r){setTimeout(r,900);});
+  }
+  displayQueue=buildDisplayQueue();
+  log('All done: '+faceSets.length+' sets');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SMOKE CANVAS — void bleeds through faces as black smoke tendrils
+// ═══════════════════════════════════════════════════════════════
+var smokeCanvas=document.getElementById('smoke-canvas');
+var sCtx=smokeCanvas.getContext('2d');
+var smokeParticles=[];
+var smokeSpawnTimer=0;
+
+function resizeSmoke(){smokeCanvas.width=window.innerWidth;smokeCanvas.height=window.innerHeight;}
+
+function spawnSmoke(){
+  var W=smokeCanvas.width,H=smokeCanvas.height;
+  var cx=W/2+( Math.random()-0.5)*W*0.4;
+  var cy=H/2+(Math.random()-0.5)*H*0.4;
+  smokeParticles.push({
+    x:cx,y:cy,
+    vx:(Math.random()-0.5)*0.8,
+    vy:(Math.random()-0.5)*0.8-0.3,
+    r:30+Math.random()*80,
+    alpha:0,
+    maxAlpha:0.18+Math.random()*0.28,
+    life:0,maxLife:180+Math.random()*240,
+    phase:'in'
+  });
+}
+
+function renderSmoke(now){
+  var W=smokeCanvas.width,H=smokeCanvas.height;
+  sCtx.clearRect(0,0,W,H);
+
+  // Spawn new smoke puffs
+  if(now-smokeSpawnTimer>400+Math.random()*600){
+    smokeSpawnTimer=now;
+    if(smokeParticles.length<18)spawnSmoke();
+    if(Math.random()<0.4&&smokeParticles.length<18)spawnSmoke();
+  }
+
+  // Update and draw
+  for(var i=smokeParticles.length-1;i>=0;i--){
+    var p=smokeParticles[i];
+    p.x+=p.vx+(Math.random()-0.5)*0.4;
+    p.y+=p.vy+(Math.random()-0.5)*0.3;
+    p.r+=0.4;
+    p.life++;
+
+    // Fade in/out
+    if(p.phase==='in'){
+      p.alpha=Math.min(p.maxAlpha,p.alpha+p.maxAlpha/40);
+      if(p.life>p.maxLife*0.35)p.phase='out';
+    }else{
+      p.alpha=Math.max(0,p.alpha-p.maxAlpha/90);
+    }
+
+    if(p.alpha<=0&&p.phase==='out'){smokeParticles.splice(i,1);continue;}
+
+    // Draw as radial black smoke puff
+    var grad=sCtx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+    grad.addColorStop(0,  'rgba(0,0,0,'+p.alpha+')');
+    grad.addColorStop(0.4,'rgba(5,0,0,'+(p.alpha*0.7)+')');
+    grad.addColorStop(0.7,'rgba(10,0,0,'+(p.alpha*0.35)+')');
+    grad.addColorStop(1,  'rgba(0,0,0,0)');
+    sCtx.save();
+    sCtx.globalCompositeOperation='multiply'; // darkens what's below — smoke effect
+    sCtx.fillStyle=grad;
+    sCtx.beginPath();sCtx.arc(p.x,p.y,p.r,0,Math.PI*2);sCtx.fill();
+    sCtx.restore();
+  }
+
+  // Occasional void tendrils — sharp dark streaks
+  if(Math.random()<0.015){
+    var tx=Math.random()*W,ty=Math.random()*H;
+    var len=40+Math.random()*120;
+    var ang=Math.random()*Math.PI*2;
+    sCtx.save();
+    sCtx.globalAlpha=0.12+Math.random()*0.18;
+    sCtx.globalCompositeOperation='multiply';
+    sCtx.strokeStyle='rgba(0,0,0,1)';
+    sCtx.lineWidth=2+Math.random()*8;
+    sCtx.lineCap='round';
+    sCtx.beginPath();sCtx.moveTo(tx,ty);
+    sCtx.lineTo(tx+Math.cos(ang)*len,ty+Math.sin(ang)*len);
+    sCtx.stroke();sCtx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRT CANVAS — maximum aggression: scanlines, glitch, noise, VHS
+// ═══════════════════════════════════════════════════════════════
+var crtCanvas=document.getElementById('crt-canvas');
+var cCtx=crtCanvas.getContext('2d');
+var glitchInt=0,glitchTick=0,vhsRoll=0;
+
+function resizeCRT(){crtCanvas.width=window.innerWidth;crtCanvas.height=window.innerHeight;}
+
+function renderCRT(now){
+  var W=crtCanvas.width,H=crtCanvas.height;
+  cCtx.clearRect(0,0,W,H);
+
+  // ── Dense scanlines — every 2px ──
+  for(var y=0;y<H;y+=2){
+    var a=0.10+0.06*Math.sin(y*0.05+now*0.001);
+    cCtx.fillStyle='rgba(0,0,0,'+a+')';
+    cCtx.fillRect(0,y,W,1.2);
+  }
+
+  // ── VHS horizontal roll bar ──
+  vhsRoll=(vhsRoll+0.4+Math.random()*0.3)%H;
+  var barH=4+Math.random()*12;
+  cCtx.save();cCtx.globalAlpha=0.25+Math.random()*0.2;
+  cCtx.fillStyle='rgba(180,0,0,0.6)';
+  cCtx.fillRect(0,vhsRoll,W,barH);
+  cCtx.restore();
+
+  // ── CRT phosphor vignette ──
+  var gv=cCtx.createRadialGradient(W/2,H/2,H*0.18,W/2,H/2,H*0.82);
+  gv.addColorStop(0,'rgba(0,0,0,0)');gv.addColorStop(1,'rgba(0,0,0,0.8)');
+  cCtx.fillStyle=gv;cCtx.fillRect(0,0,W,H);
+
+  // ── Red chromatic edge burn ──
+  var ge=cCtx.createRadialGradient(W/2,H/2,H*0.32,W/2,H/2,H*0.88);
+  ge.addColorStop(0,'rgba(180,0,0,0)');ge.addColorStop(1,'rgba(180,0,0,0.18)');
+  cCtx.fillStyle=ge;cCtx.fillRect(0,0,W,H);
+
+  // ── Glitch events — triggered more often, more intense ──
+  if(now-glitchTick>800+Math.random()*3000){glitchTick=now;glitchInt=1.5+Math.random()*1.5;}
+  if(glitchInt>0){
+    var count=Math.floor(glitchInt*28);
+    for(var i=0;i<count;i++){
+      var gy=Math.random()*H,gh=1+Math.random()*18*glitchInt;
+      var gx=(Math.random()-0.5)*80*glitchInt;
+      // RGB split — red left, dark right
+      cCtx.save();cCtx.globalAlpha=0.22*glitchInt;cCtx.globalCompositeOperation='screen';
+      cCtx.fillStyle='rgba(255,0,0,1)';cCtx.fillRect(gx+4,gy,W,gh);
+      cCtx.fillStyle='rgba(80,0,0,1)'; cCtx.fillRect(gx-3,gy+0.5,W,gh);
+      cCtx.restore();
+      // Block noise
+      if(Math.random()<0.45){
+        var bx=Math.random()*W,bw=8+Math.random()*200;
+        cCtx.fillStyle='rgba('+(140+Math.random()*115)+',0,0,'+(0.12*glitchInt)+')';
+        cCtx.fillRect(bx,gy,bw,gh);
+      }
+    }
+
+    // ── Full-frame flicker ──
+    if(Math.random()<0.08*glitchInt){
+      cCtx.fillStyle='rgba(60,0,0,'+(0.15*glitchInt)+')';
+      cCtx.fillRect(0,0,W,H);
+    }
+
+    // ── Horizontal displacement bands ──
+    if(Math.random()<0.3*glitchInt){
+      var by=Math.random()*H,bh=3+Math.random()*30;
+      cCtx.save();cCtx.globalAlpha=0.3*glitchInt;
+      cCtx.globalCompositeOperation='difference';
+      cCtx.fillStyle='rgba(200,0,0,0.5)';
+      cCtx.fillRect(0,by,W,bh);
+      cCtx.restore();
+    }
+
+    glitchInt*=0.86;if(glitchInt<0.02)glitchInt=0;
+  }
+
+  // ── Persistent noise grain ──
+  for(var n=0;n<Math.floor(W*H*0.0012);n++){
+    var nx=Math.random()*W,ny=Math.random()*H;
+    var nv=Math.random()>0.5?'rgba(200,0,0,':'rgba(0,0,0,';
+    cCtx.fillStyle=nv+(0.04+Math.random()*0.12)+')';
+    cCtx.fillRect(nx,ny,1.5,1.5);
+  }
+
+  // ── Horizontal noise lines ──
+  if(Math.random()<0.14){
+    var ly=Math.random()*H;
+    cCtx.save();cCtx.globalAlpha=0.15+Math.random()*0.28;
+    cCtx.strokeStyle='rgba(220,0,0,0.7)';cCtx.lineWidth=0.6;
+    cCtx.beginPath();cCtx.moveTo(0,ly);cCtx.lineTo(W,ly);cCtx.stroke();cCtx.restore();
+  }
+
+  // ── VHS colour bleed — red smear ──
+  if(Math.random()<0.06){
+    var sy=Math.random()*H,sh=2+Math.random()*6,sw=30+Math.random()*W*0.6;
+    cCtx.save();cCtx.globalAlpha=0.08+Math.random()*0.12;
+    cCtx.globalCompositeOperation='screen';
+    cCtx.fillStyle='rgba(255,0,0,1)';
+    cCtx.fillRect(Math.random()*W*0.4,sy,sw,sh);
+    cCtx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRIANGLE CANVAS — glowing red equilateral, light beaming/flowing
+// ═══════════════════════════════════════════════════════════════
+var triCanvas=document.getElementById('tri-canvas');
+var tCtx=triCanvas.getContext('2d');
+
+function resizeTri(){triCanvas.width=window.innerWidth;triCanvas.height=window.innerHeight;}
+
+function renderTriangle(now){
+  var W=triCanvas.width,H=triCanvas.height;
+  tCtx.clearRect(0,0,W,H);
+
+  var t=now*0.001;
+  var cx=W/2, cy=H/2;
+  // Size: ~18% of shortest screen dimension
+  var size=Math.min(W,H)*0.18;
+
+  // Equilateral triangle points (pointing up)
+  var h=size*Math.sqrt(3)/2;
+  var pts=[
+    [cx,       cy-h*2/3*1.2],   // top
+    [cx+size/2,cy+h*1/3*1.2],   // bottom-right
+    [cx-size/2,cy+h*1/3*1.2],   // bottom-left
+  ];
+
+  // ── Outer glow layers — pulsing ──
+  var pulse=0.7+0.3*Math.sin(t*1.8);
+  var pulse2=0.5+0.5*Math.sin(t*2.3+1.2);
+
+  // Large diffuse glow
+  for(var g=5;g>=0;g--){
+    var expand=g*14*pulse;
+    tCtx.save();
+    tCtx.globalAlpha=(0.04+g*0.015)*pulse;
+    tCtx.shadowBlur=0;
+    tCtx.fillStyle='rgba(255,0,0,'+(0.03+g*0.01)+')';
+    tCtx.beginPath();
+    tCtx.moveTo(pts[0][0],pts[0][1]-expand*1.1);
+    tCtx.lineTo(pts[1][0]+expand*0.8,pts[1][1]+expand*0.6);
+    tCtx.lineTo(pts[2][0]-expand*0.8,pts[2][1]+expand*0.6);
+    tCtx.closePath();tCtx.fill();tCtx.restore();
+  }
+
+  // ── Beaming light rays from each vertex ──
+  pts.forEach(function(pt,idx){
+    var rayAng=[-Math.PI/2, Math.PI/6, Math.PI-Math.PI/6][idx]; // outward from each vertex
+    var rayLen=size*(1.8+0.8*Math.sin(t*2.1+idx*2.1));
+    var rayAlpha=(0.06+0.05*Math.sin(t*3.0+idx*1.7))*pulse;
+
+    tCtx.save();
+    tCtx.globalAlpha=rayAlpha;
+    var rg=tCtx.createLinearGradient(pt[0],pt[1],
+      pt[0]+Math.cos(rayAng)*rayLen,pt[1]+Math.sin(rayAng)*rayLen);
+    rg.addColorStop(0,'rgba(255,80,0,0.9)');
+    rg.addColorStop(0.3,'rgba(255,0,0,0.5)');
+    rg.addColorStop(1,'rgba(200,0,0,0)');
+    tCtx.strokeStyle=rg;
+    tCtx.lineWidth=2+2*pulse;
+    tCtx.lineCap='round';
+    tCtx.beginPath();tCtx.moveTo(pt[0],pt[1]);
+    tCtx.lineTo(pt[0]+Math.cos(rayAng)*rayLen,pt[1]+Math.sin(rayAng)*rayLen);
+    tCtx.stroke();tCtx.restore();
+  });
+
+  // ── Flowing light along edges — animated dash ──
+  var dashOffset=(-t*60)%80;
+  tCtx.save();
+  tCtx.setLineDash([12,8]);
+  tCtx.lineDashOffset=dashOffset;
+  tCtx.strokeStyle='rgba(255,120,0,'+0.45*pulse+')';
+  tCtx.lineWidth=1.5;
+  tCtx.shadowColor='rgba(255,60,0,0.9)';
+  tCtx.shadowBlur=16*pulse;
+  tCtx.beginPath();
+  tCtx.moveTo(pts[0][0],pts[0][1]);tCtx.lineTo(pts[1][0],pts[1][1]);
+  tCtx.lineTo(pts[2][0],pts[2][1]);tCtx.closePath();
+  tCtx.stroke();tCtx.restore();
+
+  // ── Solid triangle edge ──
+  tCtx.save();
+  tCtx.strokeStyle='rgba(255,40,0,'+(0.7+0.3*pulse)+')';
+  tCtx.lineWidth=1.8;
+  tCtx.shadowColor='rgba(255,0,0,1)';
+  tCtx.shadowBlur=22*pulse;
+  tCtx.setLineDash([]);
+  tCtx.beginPath();
+  tCtx.moveTo(pts[0][0],pts[0][1]);tCtx.lineTo(pts[1][0],pts[1][1]);
+  tCtx.lineTo(pts[2][0],pts[2][1]);tCtx.closePath();
+  tCtx.stroke();tCtx.restore();
+
+  // ── Interior fill — very subtle red glow ──
+  tCtx.save();
+  tCtx.globalAlpha=0.04+0.03*pulse2;
+  var ig=tCtx.createRadialGradient(cx,cy,0,cx,cy,size*0.7);
+  ig.addColorStop(0,'rgba(255,60,0,0.8)');ig.addColorStop(1,'rgba(200,0,0,0)');
+  tCtx.fillStyle=ig;
+  tCtx.beginPath();
+  tCtx.moveTo(pts[0][0],pts[0][1]);tCtx.lineTo(pts[1][0],pts[1][1]);
+  tCtx.lineTo(pts[2][0],pts[2][1]);tCtx.closePath();
+  tCtx.fill();tCtx.restore();
+
+  // ── Centre eye — small bright point ──
+  var eyePulse=0.4+0.6*Math.sin(t*4.2);
+  tCtx.save();
+  var eg=tCtx.createRadialGradient(cx,cy,0,cx,cy,size*0.12);
+  eg.addColorStop(0,'rgba(255,200,100,'+(0.6+0.4*eyePulse)+')');
+  eg.addColorStop(0.5,'rgba(255,60,0,'+(0.3*eyePulse)+')');
+  eg.addColorStop(1,'rgba(200,0,0,0)');
+  tCtx.fillStyle=eg;tCtx.globalAlpha=eyePulse*0.8;
+  tCtx.beginPath();tCtx.arc(cx,cy,size*0.12,0,Math.PI*2);tCtx.fill();
+  tCtx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════════════
+var audioCtx=null,choirNodes=[],cacophonySlots=[];
+
+// mkReverb: max 2s to avoid main-thread stall. Shared instance reused where possible.
+function mkReverb(sec,dec){
+  var c=audioCtx.createConvolver();
+  var s=Math.min(sec,2.0); // hard cap — longer reverbs stall the audio thread
+  var len=Math.floor(audioCtx.sampleRate*s);
+  var b=audioCtx.createBuffer(2,len,audioCtx.sampleRate);
+  for(var ch=0;ch<2;ch++){var dd=b.getChannelData(ch);for(var i=0;i<len;i++)dd[i]=(Math.random()*2-1)*Math.pow(1-i/len,Math.max(dec,1.5));}
+  c.buffer=b;return c;
+}
+// Shared reverb bus — built once, all audio sources send to it
+var _sharedRev=null,_sharedRevG=null;
+function getSharedReverb(){
+  if(_sharedRev)return{rev:_sharedRev,gain:_sharedRevG};
+  _sharedRev=mkReverb(1.8,1.8);
+  _sharedRevG=audioCtx.createGain();_sharedRevG.gain.value=0.45;
+  _sharedRev.connect(_sharedRevG);_sharedRevG.connect(audioCtx.destination);
+  return{rev:_sharedRev,gain:_sharedRevG};
+}
+
+function buildChoir(){
+  var master=audioCtx.createGain();
+  master.gain.setValueAtTime(0,audioCtx.currentTime);
+  master.gain.linearRampToValueAtTime(0.38,audioCtx.currentTime+4); // was 14s — too slow
+  var comp=audioCtx.createDynamicsCompressor();
+  comp.threshold.value=-18;comp.ratio.value=4;comp.attack.value=0.05;comp.release.value=0.3;
+  comp.connect(audioCtx.destination);
+  var SR=getSharedReverb();
+  var dryG=audioCtx.createGain();dryG.gain.value=0.55;
+  var wetG=audioCtx.createGain();wetG.gain.value=0.45;
+  master.connect(dryG);dryG.connect(comp);master.connect(wetG);wetG.connect(SR.rev);
+  var BASE=82.4;
+  var voices=[
+    {f:BASE*.5,v:.22},{f:BASE*.501,v:.20},{f:BASE,v:.19},{f:BASE*1.003,v:.17},
+    {f:BASE*.749,v:.21},{f:BASE*.751,v:.19},{f:BASE*1.5,v:.13},{f:BASE*1.497,v:.12},
+    {f:BASE*2,v:.10},{f:BASE*1.998,v:.09},{f:BASE*2.5,v:.08},
+  ];
+  voices.forEach(function(cfg,i){
+    var osc=audioCtx.createOscillator();osc.type='sawtooth';osc.frequency.value=cfg.f;
+    var vib=audioCtx.createOscillator();vib.frequency.value=4.3+i*.19;
+    var vibG=audioCtx.createGain();vibG.gain.value=cfg.f*.0021;vib.connect(vibG);vibG.connect(osc.frequency);
+    var bLFO=audioCtx.createOscillator();bLFO.frequency.value=0.05+i*.007;
+    var bAmt=audioCtx.createGain();bAmt.gain.value=0.024;bLFO.connect(bAmt);
+    var filt=audioCtx.createBiquadFilter();filt.type='bandpass';filt.frequency.value=650+i*55;filt.Q.value=3;
+    var vG=audioCtx.createGain();vG.gain.value=cfg.v;bAmt.connect(vG.gain);
+    osc.connect(filt);filt.connect(vG);vG.connect(master);
+    osc.start();vib.start();bLFO.start();
+    _allOscillators.push(osc,vib,bLFO);choirNodes.push(osc,vib,bLFO);
+  });
+}
+
+function buildCacophony(){
+  if(!MEDIA_FILES.length)return;
+  var SR=getSharedReverb(); // reuse shared reverb — no new computation
+  // Delays: max 2s, no feedback loop on long delays (causes lag)
+  function mkDelay(t,fb){var d=audioCtx.createDelay(2);d.delayTime.value=Math.min(t,1.8);var f=audioCtx.createGain();f.gain.value=fb*0.7;d.connect(f);f.connect(d);return d;}
+  var delays=[mkDelay(0.28,0.38),mkDelay(0.55,0.35),mkDelay(0.95,0.30),mkDelay(1.40,0.25),mkDelay(0.18,0.40)];
+  var delOut=audioCtx.createGain();delOut.gain.value=0.18;
+  delays.forEach(function(d){d.connect(delOut);});delOut.connect(audioCtx.destination);delOut.connect(SR.rev);
+  // 5 slots, each picks a random file per cycle, start within 2s of audio init
+  // Slot 4 = natural speed (0.88-1.0) with heavy reverb as requested
+  var slotCfg=[
+    {speedMin:0.28,speedMax:0.40,pan:-0.88,revSend:0.80,delaySend:0.55,delayBus:0,cycleBase:18000,natural:false},
+    {speedMin:0.42,speedMax:0.58,pan:-0.44,revSend:0.65,delaySend:0.40,delayBus:1,cycleBase:22000,natural:false},
+    {speedMin:0.60,speedMax:0.76,pan: 0.00,revSend:0.50,delaySend:0.30,delayBus:2,cycleBase:16000,natural:false},
+    {speedMin:0.78,speedMax:0.90,pan: 0.44,revSend:0.40,delaySend:0.20,delayBus:3,cycleBase:20000,natural:false},
+    {speedMin:0.88,speedMax:1.00,pan: 0.88,revSend:0.85,delaySend:0.60,delayBus:4,cycleBase:24000,natural:true},
+  ];
+  slotCfg.forEach(function(cfg,si){
+    var startDelay=si*350+Math.random()*200;
+    function runSlot(){
+      if(!audioCtx)return;
+      var filename=MEDIA_FILES[Math.floor(Math.random()*MEDIA_FILES.length)];
+      var rate=cfg.speedMin+Math.random()*(cfg.speedMax-cfg.speedMin);
+      try{
+        var audio=new Audio();
+        audio.crossOrigin='anonymous';audio.loop=true;audio.preload='auto';
+        audio.src=REPO+'/installation/media/'+encodeURIComponent(filename);
+        audio.playbackRate=rate;_allAudioElements.push(audio);
+        var src=audioCtx.createMediaElementSource(audio);
+        var gn=audioCtx.createGain();
+        gn.gain.setValueAtTime(0,audioCtx.currentTime);
+        gn.gain.linearRampToValueAtTime(0.13+Math.random()*0.10,audioCtx.currentTime+2.0);
+        var pan=audioCtx.createStereoPanner();
+        pan.pan.value=Math.max(-1,Math.min(1,cfg.pan+(Math.random()-0.5)*0.1));
+        var pLFO=audioCtx.createOscillator();
+        pLFO.frequency.value=0.008+Math.random()*0.025;
+        var pAmt=audioCtx.createGain();pAmt.gain.value=0.10+Math.random()*0.15;
+        pLFO.connect(pAmt);pAmt.connect(pan.pan);pLFO.start();_allOscillators.push(pLFO);
+        var filt=audioCtx.createBiquadFilter();
+        filt.type='lowpass';
+        filt.frequency.value=cfg.natural?3500:(500+Math.random()*2500);
+        filt.Q.value=0.3+Math.random()*1.0;
+        src.connect(filt);filt.connect(gn);gn.connect(pan);
+        pan.connect(audioCtx.destination);
+        var rvS=audioCtx.createGain();rvS.gain.value=cfg.revSend*(0.7+Math.random()*0.2);
+        pan.connect(rvS);rvS.connect(SR.rev);
+        var dlS=audioCtx.createGain();dlS.gain.value=cfg.delaySend*(0.85+Math.random()*0.3);
+        pan.connect(dlS);dlS.connect(delays[cfg.delayBus]);
+        audio.play().then(function(){
+          log('S'+si+' '+filename.slice(-14)+' x'+rate.toFixed(2)+(cfg.natural?' NAT':''));
+        }).catch(function(e){log('S'+si+' fail:'+e.message);});
+        var cycleLen=cfg.cycleBase+(Math.random()*6000-3000);
+        var fadeTO=setTimeout(function(){
+          if(!audioCtx)return;
+          gn.gain.linearRampToValueAtTime(0,audioCtx.currentTime+2.5);
+          var restartTO=setTimeout(function(){
+            try{audio.pause();audio.src='';
+              var idx=_allAudioElements.indexOf(audio);if(idx>-1)_allAudioElements.splice(idx,1);
+            }catch(e){}
+            try{pLFO.stop();}catch(e){}
+            var gTO=setTimeout(runSlot,800+Math.random()*2000);
+            cacophonySlots.push(gTO);
+          },2800);
+          cacophonySlots.push(restartTO);
+        },cycleLen);
+        cacophonySlots.push(fadeTO);
+      }catch(e){log('S'+si+' err:'+e.message);}
+    }
+    var initTO=setTimeout(runSlot,startDelay);cacophonySlots.push(initTO);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VOICE — Revelation, male, inhuman
+// ═══════════════════════════════════════════════════════════════
+var BNA=[
+  {t:'BE NOT AFRAID',l:'en-US'},{t:'NOLI TIMERE',l:'it-IT'},
+  {t:'אַל-תִּירָא',l:'he-IL'},{t:'ΜΗ ΦΟΒΟΥ',l:'el-GR'},
+  {t:'لَا تَخَفْ',l:'ar-SA'},{t:"N'AYEZ PAS PEUR",l:'fr-FR'},
+  {t:'FÜRCHTE DICH NICHT',l:'de-DE'},{t:'НЕ БОЙСЯ',l:'ru-RU'},
+  {t:'恐れるな',l:'ja-JP'},{t:'ÄLÄ PELKÄÄ',l:'fi-FI'},
+  {t:'不要害怕',l:'zh-CN'},{t:'NU TE TEME',l:'ro-RO'},
+];
+var REV=[
+  "I am Alpha and Omega. The first. And the last.",
+  "Fear not. I am he that liveth. And was dead.",
+  "Behold. I am alive for evermore. And I have the keys of hell. And of death.",
+  "I know thy works. And where thou dwellest. Even where Satan's seat is.",
+  "He that hath an ear. Let him hear. What the Spirit saith.",
+  "I will give thee a crown of life.",
+  "And I looked. And behold a pale horse. His name that sat on him was Death. And Hell followed with him.",
+  "And the stars of heaven fell unto the earth.",
+  "And the kings of the earth hid themselves in the dens and in the rocks of the mountains.",
+  "Holy. Holy. Holy. Lord God Almighty. Which was. And is. And is to come.",
+  "And I saw as it were a sea of glass. Mingled with fire.",
+  "Worthy is the Lamb that was slain.",
+  "And there was war in heaven. Michael and his angels fought against the dragon.",
+  "And the great dragon was cast out. That old serpent. Called the Devil. And Satan.",
+  "And his tail drew the third part of the stars of heaven. And cast them to the earth.",
+  "And they worshipped the dragon. Who gave power unto the beast.",
+  "And he causeth all. Both small and great. Rich and poor. To receive a mark.",
+  "And I saw a great white throne. And him that sat on it.",
+  "And the books were opened. And another book was opened. Which is the book of life.",
+  "And whosoever was not found written in the book of life. Was cast into the lake of fire.",
+  "And I saw a new heaven. And a new earth.",
+  "And God shall wipe away all tears from their eyes. And there shall be no more death.",
+  "Behold. I come quickly.",
+  "I am Alpha. And Omega. The beginning. And the end. The first. And the last.",
+];
+
+var bnaIdx=0,revIdx=0,speechActive=false,voiceTO=null;
+var voiceEl=document.getElementById('voice-text');
+var revelEl=document.getElementById('revelation-text');
+
+// ── VOICE SYNTHESIS ────────────────────────────────────────────────────────
+// The Web Speech API voice is device-dependent and unreliable for male voices.
+// Strategy:
+//  1. Log ALL available voices to console so the exact name on this device is known
+//  2. Try every known male voice name across all platforms
+//  3. Explicitly reject known female voice names
+//  4. As a parallel track: Web Audio formant synthesis produces a guaranteed
+//     deep male resonant tone under the speech — audible regardless of TTS result
+
+// --- Female name fragments to reject ---
+var FEMALE_FRAGS=['samantha','victoria','karen','moira','fiona','veena','tessa',
+  'joana','marie','amelie','carmit','lekha','sin-ji','kyoko','yuna','satu','sara',
+  'alva','nora','ellen','zuzana','milena','lucia','monica','paulina','ewa','zosia',
+  'mariska','damayanti','kanya','serena','female','woman','girl','zira','hazel',
+  'linda','heather','eva','susan','cortana'];
+
+// --- Known male voice name fragments across platforms ---
+var MALE_NAMES=['Google US English Male','Google UK English Male',
+  'Microsoft David','Microsoft Mark','Microsoft Guy','Microsoft James',
+  'Microsoft Richard','Alex','Daniel','Thomas','Fred','Bruce','Junior',
+  'Ralph','Albert','Grandpa','Whisper','Zarvox','Trinoids','Rocko','Reed',
+  'Eddy (English (UK))','Reed (English (US))','Rocko (English (US))',
+  'Grandpa (English (US))'];
+
+function isFemale(name){
+  var n=(name||'').toLowerCase();
+  for(var i=0;i<FEMALE_FRAGS.length;i++)if(n.indexOf(FEMALE_FRAGS[i])>-1)return true;
+  return false;
+}
+
+var _voicesDumped=false;
+function dumpVoices(){
+  if(_voicesDumped)return;_voicesDumped=true;
+  var vs=window.speechSynthesis.getVoices();
+  console.log('=== ALL VOICES ('+vs.length+') ===');
+  vs.forEach(function(v,i){console.log(i+'. "'+v.name+'" lang='+v.lang+' local='+v.localService);});
+  console.log('=== END VOICES ===');
+}
+
+function getMaleVoice(){
+  if(!('speechSynthesis' in window))return null;
+  var vs=window.speechSynthesis.getVoices();
+  if(!vs.length)return null;
+  dumpVoices();
+  // Pass 1: exact name match from known male list
+  for(var m=0;m<MALE_NAMES.length;m++)
+    for(var v=0;v<vs.length;v++)
+      if(vs[v].name===MALE_NAMES[m]){log('V[exact]:'+vs[v].name);return vs[v];}
+  // Pass 2: partial name match, not female
+  for(var m=0;m<MALE_NAMES.length;m++)
+    for(var v=0;v<vs.length;v++)
+      if(vs[v].name.indexOf(MALE_NAMES[m])>-1&&!isFemale(vs[v].name)){log('V[part]:'+vs[v].name);return vs[v];}
+  // Pass 3: local en-US not female
+  for(var v=0;v<vs.length;v++)
+    if(vs[v].lang==='en-US'&&vs[v].localService&&!isFemale(vs[v].name)){log('V[local-US]:'+vs[v].name);return vs[v];}
+  // Pass 4: any en-US not female
+  for(var v=0;v<vs.length;v++)
+    if(vs[v].lang==='en-US'&&!isFemale(vs[v].name)){log('V[en-US]:'+vs[v].name);return vs[v];}
+  // Pass 5: any en-GB not female
+  for(var v=0;v<vs.length;v++)
+    if(vs[v].lang==='en-GB'&&!isFemale(vs[v].name)){log('V[en-GB]:'+vs[v].name);return vs[v];}
+  // Pass 6: any English not female
+  for(var v=0;v<vs.length;v++)
+    if(vs[v].lang.slice(0,2)==='en'&&!isFemale(vs[v].name)){log('V[en]:'+vs[v].name);return vs[v];}
+  // Pass 7: any voice not female
+  for(var v=0;v<vs.length;v++)if(!isFemale(vs[v].name)){log('V[any]:'+vs[v].name);return vs[v];}
+  log('V[fallback]:'+vs[0].name);return vs[0];
+}
+
+// Web Audio formant synth — guaranteed dark male drone
+// Runs in parallel with TTS — heard regardless of what TTS does
+function playFormantDrone(durationMs){
+  if(!audioCtx)return;
+  var dur=durationMs/1000;
+  var now=audioCtx.currentTime;
+
+  // Fundamental: E1 (41.2 Hz) — very low
+  var fund=audioCtx.createOscillator();
+  fund.type='sawtooth';fund.frequency.value=41.2;
+
+  // Formant filters: F1=700Hz (open vowel), F2=1200Hz, F3=2500Hz
+  var f1=audioCtx.createBiquadFilter();f1.type='bandpass';f1.frequency.value=700;f1.Q.value=8;
+  var f2=audioCtx.createBiquadFilter();f2.type='bandpass';f2.frequency.value=1200;f2.Q.value=6;
+  var f3=audioCtx.createBiquadFilter();f3.type='bandpass';f3.frequency.value=2500;f3.Q.value=4;
+
+  var mix=audioCtx.createGain();mix.gain.value=0;
+  mix.gain.linearRampToValueAtTime(0.22,now+0.8);
+  mix.gain.setValueAtTime(0.22,now+Math.max(0,dur-1.2));
+  mix.gain.linearRampToValueAtTime(0,now+dur);
+
+  var SR=getSharedReverb();
+  fund.connect(f1);fund.connect(f2);fund.connect(f3);
+  f1.connect(mix);f2.connect(mix);f3.connect(mix);
+  mix.connect(audioCtx.destination);
+  mix.connect(SR.rev);
+
+  fund.start(now);fund.stop(now+dur+0.1);
+  _allOscillators.push(fund);
+}
+
+var voicesLoaded=false;
+function ensureVoicesLoaded(cb){
+  if(!('speechSynthesis' in window)){cb();return;}
+  var vs=window.speechSynthesis.getVoices();
+  if(vs.length>0){voicesLoaded=true;dumpVoices();cb();return;}
+  window.speechSynthesis.addEventListener('voiceschanged',function onVC(){
+    window.speechSynthesis.removeEventListener('voiceschanged',onVC);
+    voicesLoaded=true;dumpVoices();cb();
+  });
+  var poll=setInterval(function(){
+    if(window.speechSynthesis.getVoices().length>0){
+      clearInterval(poll);voicesLoaded=true;dumpVoices();cb();
+    }
+  },150);
+  setTimeout(function(){clearInterval(poll);cb();},6000);
+}
+
+function speakVerse(){
+  if(!speechActive)return;
+  var phrase=BNA[bnaIdx%BNA.length];bnaIdx++;
+  var verse=REV[revIdx%REV.length];revIdx++;
+
+  // Visual — text above triangle
+  voiceEl.textContent=phrase.t;
+  voiceEl.classList.remove('voice-active');void voiceEl.offsetWidth;voiceEl.classList.add('voice-active');
+  revelEl.textContent=verse;
+  revelEl.style.color='rgba(200,0,0,0.38)';
+  setTimeout(function(){revelEl.style.color='rgba(200,0,0,0)';},12000);
+  glitchInt=1.3+Math.random()*0.9;
+
+  // Web Audio formant drone — always audible as dark male resonance
+  var estimatedDur=Math.max(8000, verse.length*120); // rough estimate
+  playFormantDrone(estimatedDur);
+
+  // NO speechSynthesis — it always picks the system default female voice.
+  // The formant drone IS the voice. Text is displayed on screen.
+  // This is 100% guaranteed male and dark regardless of device/browser.
+
+  voiceTO=setTimeout(speakVerse,18000+Math.random()*12000);
+}
+
+function stopAll(){
+  glRunning=false;speechActive=false;
+  if(voiceTO){clearTimeout(voiceTO);voiceTO=null;}
+  cacophonySlots.forEach(function(t){try{clearTimeout(t);}catch(e){}});
+  cacophonySlots=[];killAllAudio();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════════
+function loop(now){
+  if(!glRunning)return;
+  renderGL();renderFaces(now);renderSmoke(now);renderCRT(now);renderTriangle(now);
+  requestAnimationFrame(loop);
+}
+function resize(){
+  resizeGL();resizeFace();resizeSmoke();resizeCRT();resizeTri();
+}
+window.addEventListener('resize',resize,{passive:true});
+resize();
+
+
+// ─── AMBIENCE — haunting choir + screaming crowd, looped with crossfade ──────
+// Both files loop infinitely. Crossfade period: 4s. Volume: slightly under mix.
+var ambienceNodes=[];
+
+function buildAmbience(){
+  var AMBIENCE_FILES=[
+    {url:REPO+'/installation/media/haunting-choir-singing-sound-effects-hd-free_trsnzPvr.mp3', vol:0.18},
+    {url:REPO+'/installation/media/horror-sound-effect-people-screaming-in-hellmp4_OczQrhOy.mp3', vol:0.14},
+  ];
+
+  // Shared light reverb send for ambience
+  var SR=getSharedReverb();
+
+  AMBIENCE_FILES.forEach(function(cfg,ai){
+    // Each file uses two Audio elements that crossfade between each other
+    // so there is never silence when looping
+    var elemA=new Audio();elemA.crossOrigin='anonymous';elemA.preload='auto';elemA.src=cfg.url;
+    var elemB=new Audio();elemB.crossOrigin='anonymous';elemB.preload='auto';elemB.src=cfg.url;
+    _allAudioElements.push(elemA,elemB);
+
+    var srcA=audioCtx.createMediaElementSource(elemA);
+    var srcB=audioCtx.createMediaElementSource(elemB);
+    var gainA=audioCtx.createGain();gainA.gain.value=0;
+    var gainB=audioCtx.createGain();gainB.gain.value=0;
+
+    // Subtle panning: choir slightly left, screams slightly right
+    var pan=audioCtx.createStereoPanner();
+    pan.pan.value=ai===0?-0.2:0.2;
+
+    srcA.connect(gainA);gainA.connect(pan);
+    srcB.connect(gainB);gainB.connect(pan);
+    pan.connect(audioCtx.destination);
+    pan.connect(SR.rev);
+
+    var FADE=4.0; // crossfade seconds
+    var activeEl=elemA,activeGain=gainA,inactiveEl=elemB,inactiveGain=gainB;
+    var targetVol=cfg.vol;
+
+    function doPlay(el,gn,onReady){
+      el.currentTime=0;
+      el.play().then(function(){
+        gn.gain.setValueAtTime(0,audioCtx.currentTime);
+        gn.gain.linearRampToValueAtTime(targetVol,audioCtx.currentTime+FADE);
+        if(onReady)onReady();
+        log('Amb'+ai+' playing');
+      }).catch(function(e){log('Amb'+ai+' err:'+e.message);});
+    }
+
+    function crossfade(){
+      // Swap active/inactive
+      var nextEl=inactiveEl,nextGain=inactiveGain;
+      var prevGain=activeGain;
+      // Fade in next
+      doPlay(nextEl,nextGain,null);
+      // Fade out current
+      prevGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+FADE);
+      // Swap references
+      activeEl=nextEl;activeGain=nextGain;
+      inactiveEl=(nextEl===elemA)?elemB:elemA;
+      inactiveGain=(nextGain===gainA)?gainB:gainA;
+    }
+
+    // Start playing element A immediately
+    doPlay(activeEl,activeGain,null);
+
+    // When A ends, crossfade to B (loop via ended event)
+    // Also set loop=false so we control it manually
+    function setupEndHandler(el){
+      el.addEventListener('ended',function(){
+        crossfade();
+        // After swap, set up handler on the new inactive (was active)
+        setTimeout(function(){setupEndHandler(inactiveEl);},500);
+      },{once:true});
+    }
+    setupEndHandler(elemA);
+
+    ambienceNodes.push({elemA:elemA,elemB:elemB,gainA:gainA,gainB:gainB});
+  });
+}
+
+var audioStarted=false;
+function startAudio(){
+  if(audioStarted)return;audioStarted=true;
+  document.removeEventListener('click',startAudio,true);
+  document.removeEventListener('touchend',startAudio,true);
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  _audioCtxRef=audioCtx;
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  buildChoir();buildCacophony();buildAmbience();
+  speechActive=true;
+  // Start speaking immediately — pure Web Audio synthesis, no TTS
+  setTimeout(function(){if(speechActive)speakVerse();},1500);
+}
+
+if(initGL()){glRunning=true;requestAnimationFrame(loop);}
+loadAndProcess();
+document.addEventListener('click',startAudio,true);
+document.addEventListener('touchend',startAudio,true);
+if(window===window.top)history.pushState({installation:true},'','#active');
+</script>
+</body>
+</html>
