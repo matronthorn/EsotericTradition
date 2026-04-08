@@ -1,0 +1,49 @@
+name: Installation Pipeline
+
+on:
+  push:
+    paths:
+      - 'installation/images/**'
+      - 'installation/media/**'
+  workflow_dispatch:
+
+jobs:
+  process-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg imagemagick python3-pip
+          pip3 install rembg onnxruntime pillow numpy
+
+      - name: Install Node deps
+        run: |
+          cd installation/pipeline
+          npm install
+
+      - name: Run image pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd installation/pipeline
+          node process.js
+
+      - name: Commit processed output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add installation/processed/
+          git diff --staged --quiet || git commit -m "Pipeline: processed $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
