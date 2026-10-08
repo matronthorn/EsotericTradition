@@ -1,6 +1,14 @@
 {
   "sermons": [
     {
+      "id": "002-2026-10-09-eu7z",
+      "title": "002",
+      "file": "sermons/002-2026-10-09-eu7z.mp3",
+      "note": "",
+      "date": "2026-10-09",
+      "hidden": false
+    },
+    {
       "id": "001-2026-10-08-3gwu",
       "title": "001",
       "file": "sermons/001-2026-10-08-3gwu.mp3",
