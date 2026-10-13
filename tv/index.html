@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Esoteric Tradition Radio on TV</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{color:#b3aea5;font:20px Georgia,serif;text-align:center;margin-top:40vh}</style>
+</head>
+<body>
+<p id="msg">Esoteric Tradition Radio</p>
+<script>
+/* One page for every kind of TV.
+   - A Chromecast or Google TV running the Cast receiver (user agent contains CrKey): start the Cast receiver
+     and show the TV view in a frame, so the phone can pick the channel and the language.
+   - Anything else (a smart TV browser, a laptop): go straight to the TV view. */
+(function () {
+  var ua = navigator.userAgent || '', NS = 'urn:x-cast:com.esoterictradition.radio';
+  var home = location.pathname.replace(/tv\/(index\.html)?$/, '');
+  if (!/CrKey/.test(ua)) { location.replace(home + '?tv=1#radio'); return; }
+  var f = document.createElement('iframe');
+  f.setAttribute('allow', 'autoplay; fullscreen'); f.src = home + '?tv=1&cast=1#radio';
+  document.body.appendChild(f);
+  var s = document.createElement('script');
+  s.src = 'https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js';
+  s.onload = function () {
+    try {
+      var ctx = cast.framework.CastReceiverContext.getInstance(), opts = new cast.framework.CastReceiverOptions(), ns = {};
+      ns[NS] = cast.framework.system.MessageType.JSON; opts.customNamespaces = ns; opts.disableIdleTimeout = true;
+      ctx.addCustomMessageListener(NS, function (ev) { try { f.contentWindow.postMessage(ev.data, '*'); } catch (e) {} });
+      ctx.start(opts);
+    } catch (e) {}
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
