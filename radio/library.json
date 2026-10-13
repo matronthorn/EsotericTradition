@@ -1,6 +1,6 @@
 {
  "v": 1,
- "updated": "2026-10-13T11:19:01.073Z",
+ "updated": "2026-10-13T13:41:38.917Z",
  "items": [
   {
    "id": "r4d66ro",
@@ -15,6 +15,34 @@
     "voice": "en-GB-Chirp3-HD-Leda",
     "rate": 0.8
    }
+  },
+  {
+   "id": "rgusur7",
+   "file": "audio/music/01 - The Banishing - God Forbid.mp3",
+   "title": "01 - The Banishing - God Forbid",
+   "cat": "music",
+   "dur": 205.67
+  },
+  {
+   "id": "rmp8r3a",
+   "file": "audio/music/02 - Materiæ Abyssu - Fertility Offering to the Swamp Witch.mp3",
+   "title": "02 - Materiæ Abyssu - Fertility Offering to the Swamp Witch",
+   "cat": "music",
+   "dur": 234
+  },
+  {
+   "id": "r1m2krvc",
+   "file": "audio/music/Rust-Colored Glasses - Velvet Interior.mp3",
+   "title": "Rust-Colored Glasses - Velvet Interior",
+   "cat": "music",
+   "dur": 222
+  },
+  {
+   "id": "r1b75icb",
+   "file": "audio/music/Vagrant Starscape - Android.mp3",
+   "title": "Vagrant Starscape - Android",
+   "cat": "music",
+   "dur": 284.29
   }
  ]
 }
