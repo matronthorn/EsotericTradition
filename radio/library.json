@@ -1,0 +1,20 @@
+{
+ "v": 1,
+ "updated": "2026-10-13T11:19:01.073Z",
+ "items": [
+  {
+   "id": "r4d66ro",
+   "file": "audio/risers/etradio1.mp3",
+   "title": "ETradio1",
+   "cat": "riser",
+   "dur": 5.88,
+   "intro": true,
+   "made": {
+    "text": "Esoteric Tradition Broadcasting Network. Serving you here, at the end of the world.",
+    "loc": "en-GB",
+    "voice": "en-GB-Chirp3-HD-Leda",
+    "rate": 0.8
+   }
+  }
+ ]
+}
