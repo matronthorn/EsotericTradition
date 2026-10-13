@@ -1,0 +1,49 @@
+{
+ "v": 1,
+ "name": "Esoteric Tradition Radio",
+ "tz": "Europe/Helsinki",
+ "updated": "2026-10-13T13:43:33.920Z",
+ "rules": {
+  "riserEvery": 3,
+  "newsEvery": 4
+ },
+ "days": [
+  {
+   "blocks": []
+  },
+  {
+   "blocks": []
+  },
+  {
+   "blocks": [
+    {
+     "id": "bmv6qdo1hjpd",
+     "start": "00:00",
+     "name": "Programme",
+     "kind": "playlist",
+     "items": [
+      "rgusur7",
+      "rmp8r3a",
+      "r1m2krvc",
+      "r1b75icb"
+     ],
+     "shuffle": true,
+     "risers": true,
+     "news": true
+    }
+   ]
+  },
+  {
+   "blocks": []
+  },
+  {
+   "blocks": []
+  },
+  {
+   "blocks": []
+  },
+  {
+   "blocks": []
+  }
+ ]
+}
