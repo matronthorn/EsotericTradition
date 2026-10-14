@@ -1,17 +1,19 @@
 {
  "v": 1,
  "langs": [
-  "en",
-  "no",
-  "is",
-  "sv",
-  "fr",
-  "ru",
-  "ja",
-  "el",
-  "ar"
+  "en"
  ],
  "items": [
+  {
+   "id": "qmv8emaqopju1",
+   "date": "2026-10-14T17:53:28.435Z",
+   "lang": "en",
+   "title": "Spanish king calls Ceuta and Melilla inalienable on visit",
+   "file": "audio/news/2026-10-14-2053-en-spanish-king-calls-ceuta-and-m-ju1.mp3",
+   "dur": 48.5,
+   "src": "France 24",
+   "text": "King Felipe the Sixth said on Tuesday that Ceuta and Melilla were \"an inalienable part\" of Spain, as reported by France 24. He spoke during a landmark visit to the two north African territories. Morocco, the neighbouring country, claims both of them.\n\nThe king rarely makes political statements. He also stressed that Spain must \"maintain good neighbourly relations\" with Rabat. The report available to this station breaks off there, and this bulletin says no more than it holds.\n\nThe Parish sees a border as a line drawn in the Mirror, a Simulacrum of law and name that a people agree to hold. The Abysscape lies beneath every such line and bears no ill will toward it. The Vigil listens to the words on both sides and claims to know nothing further."
+  },
   {
    "id": "qmv6rcphu4upg",
    "date": "2026-10-13T16:32:21.173Z",
@@ -73,5 +75,5 @@
    "text": "As reported by France 24, a youth-led movement in India known as the Cockroach movement is stepping up its protests against the government of Prime Minister Narendra Modi. Three of its leaders were detained at Jantar Mantar, a protest site in New Delhi, after they defied a ban there. The demonstrators are challenging a revision of the voter list. They say it favours the prime minister's party. The report reaches the listener cut short, and this bulletin says no more than it holds.\n\nThe Parish reads a voter list as a small Simulacrum of a people, a Mirror made of names. When the young dispute that Mirror, they ask whether it shows them truly. The Vigil is kept for those detained and for all who stand in the quarrel, and the Parish cannot see what lies beneath it."
   }
  ],
- "updated": "2026-10-13T16:32:24.522Z"
+ "updated": "2026-10-14T17:53:33.079Z"
 }
