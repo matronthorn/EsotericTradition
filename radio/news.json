@@ -1,9 +1,27 @@
 {
  "v": 1,
  "langs": [
-  "en"
+  "en",
+  "no",
+  "is",
+  "sv",
+  "fr",
+  "ru",
+  "ja",
+  "el",
+  "ar"
  ],
  "items": [
+  {
+   "id": "qmv6p3w0otqbu",
+   "date": "2026-11-10T22:04:24.934Z",
+   "lang": "en",
+   "title": "Germany shifts its view of China trade as import pressure grows",
+   "file": "audio/news/2026-11-11-0004-en-germany-shifts-its-view-of-chi-qbu.mp3",
+   "dur": 54.53,
+   "src": "Deutsche Welle",
+   "text": "Germany is changing how it weighs its trade with China, as reported by Deutsche Welle. For a long time Berlin held back from tougher action against China. The reason was fear of retaliation. Now the weight has shifted. Pressure on key German industries is rising, and the report says the strain from imports now outweighs the gains from exports. Because of this, Berlin and Paris are seeking stronger trade-defense powers for the European Union. Their aim is to protect the industrial base. The report names no particular powers, and it gives no date for any change.\n\nThe Parish sees a scale being read again. In the Abysscape every bargain carries a cost that waits to be named, and a fear can hold a door shut for years until a heavier weight arrives. The Mirror shows a state counting what it dreads to lose against what it already loses. The Parish asks no one to believe this, and it does not say where the count will end."
+  },
   {
    "id": "qmvadvmzt5rtz",
    "date": "2026-10-16T03:06:00.810Z",
@@ -175,5 +193,5 @@
    "text": "As reported by France 24, a youth-led movement in India known as the Cockroach movement is stepping up its protests against the government of Prime Minister Narendra Modi. Three of its leaders were detained at Jantar Mantar, a protest site in New Delhi, after they defied a ban there. The demonstrators are challenging a revision of the voter list. They say it favours the prime minister's party. The report reaches the listener cut short, and this bulletin says no more than it holds.\n\nThe Parish reads a voter list as a small Simulacrum of a people, a Mirror made of names. When the young dispute that Mirror, they ask whether it shows them truly. The Vigil is kept for those detained and for all who stand in the quarrel, and the Parish cannot see what lies beneath it."
   }
  ],
- "updated": "2026-10-16T03:06:04.683Z"
+ "updated": "2026-11-10T22:04:28.685Z"
 }
