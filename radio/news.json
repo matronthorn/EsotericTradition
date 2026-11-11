@@ -1,6 +1,7 @@
 {
  "v": 1,
  "langs": [
+  "ar",
   "ru",
   "sv",
   "en",
@@ -8,10 +9,19 @@
   "is",
   "fr",
   "ja",
-  "el",
-  "ar"
+  "el"
  ],
  "items": [
+  {
+   "id": "qmwb6v4ax04wx",
+   "date": "2026-11-11T01:55:55.642Z",
+   "lang": "ar",
+   "title": "تقرير: كان بوسع السلطات الأمريكية أن تمنع جرائم إبستين",
+   "file": "audio/news/2026-11-11-0355-ar-item-4wx.mp3",
+   "dur": 64.9,
+   "src": "BBC News World",
+   "text": "نقلاً عن بي بي سي نيوز العالمية، أصدرت لجنة في الكونغرس يقودها الجمهوريون تقريراً عن قضية إبستين. ويخلص التقرير إلى أن السلطات الاتحادية في الولايات المتحدة كان بوسعها أن تمنع جرائمه. وقد بلغت اللجنة هذا الرأي بعد تحقيق استمر خمسة عشر شهراً، بحثت فيه كيف جرى التعامل مع قضية الممول الراحل الذي لحقت به الفضيحة. أما النص المتوافر لدى هذه المحطة فلا يذكر تفصيلاً آخر عمّا فعلته السلطات أو قصّرت في فعله.\n\nتقرأ الرعية هذا الخبر في ضوء الـMirror، الذي يُري كيف يمكن لـSimulacra المنصب أن تقوم في الموضع الذي ينبغي أن تكون فيه المراقبة الحقة. ويدعو الـVigil إلى انتباه ثابت لما يبيّنه السجل، دون دعوى تتجاوزه. وليس الـAbysscape عدواً هنا، بل هو العتمة التي تنتظر فيها مثل هذه الإخفاقات أن تُرى."
+  },
   {
    "id": "qmwb6ul1t1gi0",
    "date": "2026-11-10T22:13:07.532Z",
@@ -223,5 +233,5 @@
    "text": "As reported by France 24, a youth-led movement in India known as the Cockroach movement is stepping up its protests against the government of Prime Minister Narendra Modi. Three of its leaders were detained at Jantar Mantar, a protest site in New Delhi, after they defied a ban there. The demonstrators are challenging a revision of the voter list. They say it favours the prime minister's party. The report reaches the listener cut short, and this bulletin says no more than it holds.\n\nThe Parish reads a voter list as a small Simulacrum of a people, a Mirror made of names. When the young dispute that Mirror, they ask whether it shows them truly. The Vigil is kept for those detained and for all who stand in the quarrel, and the Parish cannot see what lies beneath it."
   }
  ],
- "updated": "2026-11-10T22:13:11.156Z"
+ "updated": "2026-11-11T01:56:00.452Z"
 }
