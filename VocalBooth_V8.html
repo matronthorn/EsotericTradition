@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VocalBooth V8</title>
+<style>
+:root{--bg:#0b0a0c;--pn:#16131a;--ln:#2a2430;--tx:#e8e2d6;--dm:#8d8594;--ac:#c9a24a;--rd:#b8433a;--gn:#5f9a6a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 Georgia,'Times New Roman',serif}
+body{padding:env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 18px)}
+h1{font-size:20px;letter-spacing:.14em;text-transform:uppercase;margin:14px 0 2px;color:var(--ac)}
+h2{font-size:16px;margin:0 0 6px}
+.sub{color:var(--dm);font-size:13px;margin:0 0 12px}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:12px;padding:12px;margin:10px 0}
+button,.btn{font:inherit;color:var(--tx);background:#241f2b;border:1px solid #3a3242;border-radius:10px;padding:12px 14px;min-height:46px;cursor:pointer;display:inline-block;text-align:center}
+button.pri{background:var(--ac);color:#15110a;border-color:var(--ac);font-weight:bold}
+button.rec{background:var(--rd);border-color:var(--rd);color:#fff;font-weight:bold}
+button:disabled{opacity:.4}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row>*{flex:0 0 auto}
+.grow{flex:1 1 auto!important}
+.small{font-size:13px;color:var(--dm)}
+.ok{color:var(--gn)}.bad{color:var(--rd)}
+input[type=file]{display:none}
+select,input[type=number]{font:inherit;color:var(--tx);background:#1d1822;border:1px solid #3a3242;border-radius:8px;padding:8px}
+.song{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--ln)}
+.song:first-child{border-top:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{border:1px solid #3a3242;border-radius:999px;padding:6px 10px;font-size:13px;background:#1d1822}
+.chip.on{border-color:var(--ac);color:var(--ac)}
+.chip.done{background:#1c2a20;border-color:var(--gn)}
+.chip.cp{border-style:dashed;color:var(--dm)}
+.chip.cp.on{color:var(--ac)}
+#stage{position:relative}
+#ball{position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,var(--ac) 60%,#8a6a1f);box-shadow:0 0 12px var(--ac);left:0;top:0;pointer-events:none;display:none;z-index:3}
+.sy{color:#5a5560;transition:color .06s}.sy.hit{color:var(--ac)}
+select{max-width:100%}
+#stage{min-height:46vh;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:10px 4px}
+.cur{font-size:clamp(26px,7.5vw,44px);line-height:1.2;margin:6px 0;font-weight:bold}
+.cur .w{background:linear-gradient(90deg,var(--ac) var(--p,0%),#5a5560 var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nxt{font-size:clamp(18px,5vw,26px);color:#7b7480;margin:4px 0}
+.tag{display:inline-block;font-size:12px;color:var(--ac);border:1px solid var(--ac);border-radius:6px;padding:1px 6px;margin:0 4px;vertical-align:middle}
+#cd{font-size:56px;color:var(--ac);min-height:64px}
+.meter{height:8px;background:#1d1822;border-radius:4px;overflow:hidden}
+.meter>i{display:block;height:100%;width:0;background:var(--gn)}
+#log{white-space:pre-wrap;font:12px/1.4 ui-monospace,Menlo,monospace;color:var(--dm)}
+.hid{display:none}
+</style></head><body>
+<h1>VocalBooth</h1>
+<p class="sub">Sing your clean vocals on your phone against the demo, part by part. Wear headphones.</p>
+<div id="warn" class="card hid"></div>
+
+<div id="home">
+ <div class="card">
+  <h2>1. Load the project</h2>
+  <p class="small">The .rpp from VigilMaster, or the Vocal Booth file made in the Lyrics tab for an older project (either carries every line, its time, key and words). A .vmlyr lyrics project also works on its own: its lines are timed from bars and tempo, counted from the start of each song, so use demos that begin at the start of the song. Optional: the album lyrics file (.txt from the Lyrics tab, or .vmlyr) to use your latest words.</p>
+  <div class="row">
+   <label class="btn">.rpp, Vocal Booth file or .vmlyr<input type="file" id="fRpp" accept=".rpp,.RPP,.txt,.vmlyr,.json,text/plain,application/json,*/*"></label>
+   <label class="btn">Lyrics (optional)<input type="file" id="fLyr" accept=".txt,.vmlyr,.json,text/plain"></label>
+   <label class="btn">Demo audio (mp3, wav, m4a)<input type="file" id="fAud" accept="audio/*,.mp3,.wav,.m4a,.flac" multiple></label>
+  </div>
+  <p class="small" id="loadMsg"></p>
+ </div>
+ <div class="card" id="songsCard" class="hid"><h2>2. Pick a song</h2><div id="songs"></div><div class="row" style="margin-top:8px"><button class="pri grow" id="bZipAll">Zip every song that has recordings</button></div><div class="row" style="margin-top:8px"><button class="pri grow" id="bQuick">Quick session: every part of every song, in order</button></div><div class="row small"><label>Music before each part <input type="number" id="qLead" min="3" max="30" value="10" style="width:56px"> seconds, then a count-in</label></div><div class="small" id="zipMsg"></div></div>
+</div>
+
+<div id="booth" class="hid">
+ <div class="card hid" id="qp"><b id="qTitle">Quick session</b><div class="small" id="qInfo"></div>
+  <div class="row" style="margin-top:6px"><button class="pri grow" id="qGo">Ready</button><button class="grow" id="qRedo">Redo the last one</button><button class="grow" id="qEnd">End session</button></div></div>
+ <div class="row"><button id="back">Back</button><div class="grow"><b id="sName"></b><div class="small" id="sInfo"></div></div></div>
+ <div class="card">
+  <div class="chips" id="lay"></div>
+  <div class="row small" style="margin:4px 0"><label><input type="checkbox" id="cFree"> Guide take: I sing the lead my own way and everything else follows it</label></div>
+  <div class="small hid" id="freeNote"></div>
+  <div class="small" id="pHead"></div>
+  <div class="chips" id="secs"></div>
+  <div class="small" id="pdet"></div>
+  <div id="stage"><i id="ball"></i><div id="cd"></div><div class="small" id="secLbl"></div><div id="curL" class="cur"></div><div id="n1" class="nxt"></div><div id="n2" class="nxt"></div></div>
+  <div class="meter"><i id="lvl"></i></div><div class="small" id="lvlMsg">&nbsp;</div>
+  <div class="row small" style="margin-top:6px"><label><input type="checkbox" id="cAuto" checked> Auto level (first take sets it)</label>
+   <span>Level <b id="gDb">0 dB</b></span><input type="range" id="gain" min="-12" max="36" step="1" value="0" style="flex:1 1 120px">
+   <label><input type="checkbox" id="cOver" checked> Hear my other layers</label></div>
+  <div class="row small" style="margin-top:6px"><label><input type="checkbox" id="cDot" checked> Bouncing dot</label> <label><input type="checkbox" id="cBeat"> Beat click over the demo</label> <label><input type="checkbox" id="cTick"> Tick on every syllable</label></div>
+  <div class="row small" style="margin-top:6px"><label><input type="checkbox" id="cReuse"> Sing a repeated part once and copy it to every place it repeats</label></div>
+  <div class="row" style="margin-top:10px">
+   <button class="rec grow" id="bRecParts">Record by parts</button>
+   <button class="rec grow" id="bRecAll">Whole song in one go</button>
+   <button id="bStop" class="grow hid">Stop here and keep it</button>
+   <button id="bCancel" class="grow hid">Cancel, keep the old take</button>
+  </div>
+  <div class="row hid" id="rv" style="margin-top:8px">
+   <button class="pri grow" id="bNext">Continue</button>
+   <button class="grow" id="bRedo">Redo this part</button>
+   <button class="grow" id="bPrev">Back one part</button>
+   <button class="grow" id="bHear">Hear this part</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+   <button id="bListen" class="grow">Listen to the whole layer</button>
+   <button id="bClearSec" class="grow">Delete this part's take</button>
+   <button class="pri grow" id="bExport">Export this layer</button>
+   <button class="pri grow" id="bExAll">Export all layers</button>
+   <button class="pri grow" id="bZip">Export this song as a zip</button>
+  </div>
+ </div>
+ <div class="card">
+  <div class="row"><label class="btn grow">Demo audio for this song<input type="file" id="fAud2" accept="audio/*,.mp3,.wav,.m4a,.flac"></label>
+   <label class="small"><input type="checkbox" id="cClick"> click track instead</label></div>
+  <p class="small" id="audMsg"></p>
+  <div class="row small" style="margin-bottom:8px"><label>Microphone <select id="mic"><option value="">Default</option></select></label>
+   <button id="bTest">Test: does the mic hear the music?</button></div>
+  <p class="small" id="testMsg">Wear wired headphones. The phone's own microphone can be used while headphones play the demo; if your headphones have a mic, pick whichever you want above. Bluetooth headphones add delay and often switch the mic to a poor mode. On Android, wired earphones with the phone's own mic usually give the least delay; if the take lands late, use the latency trim.</p>
+  <div class="row small">Audio starts at
+   <select id="audMode"><option value="auto">auto</option><option value="proj">project start</option><option value="song">this song's start</option></select>
+   Latency trim (ms) <input type="number" id="trim" value="0" step="10" style="width:84px">
+  </div>
+ </div>
+ <p class="small" id="boothMsg"></p>
+</div>
+<div class="card small"><b>How the takes reach REAPER.</b> Export the layers. Each file is the length of the song and already has every part, repeats included, in its place. Copy them to your Mac, drop each on the track named in brackets (at the start of the song is best, anywhere works) and run ParishAutoMix.</div>
+<div class="card"><div id="log"></div></div>
+<script>
+(function(){
+'use strict';
+var $=function(i){return document.getElementById(i)};
+var S={proj:null,lyr:null,audio:[],song:null,pi:0,pl:{},rv:null,ctx:null,buf:null,rec:null,play:null,raf:0,takes:{},db:null,exports:{},layer:'lead',wk:null};
+var LAYERS=[['lead','Lead','Lead Vocal (record)'],['double','Double','Vocal Double (record)'],['harm','Harmony and backing','Backing and Harmonies (record)'],['ad','Ad-libs','Ad-libs (record)']];
+var LSLUG={lead:'lead',double:'double',harm:'harmonies',ad:'adlibs'};
+function layerInfo(k){return LAYERS.filter(function(x){return x[0]===k})[0]}
+function log(m){var l=$('log');l.textContent=(m+'\n'+l.textContent).slice(0,3000)}
+function norm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'')}
+function fmt(t){t=Math.max(0,t);var m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
+/* ---------- environment check ---------- */
+(function(){var w=$('warn'),m=[];
+ if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!window.isSecureContext)m.push('The microphone needs a secure page (https or localhost). Opened as a plain file the phone may refuse it. Put this file on your own https site (for example on esoterictradition.com) and open it from there.');
+ if(!(window.AudioContext||window.webkitAudioContext)||!window.AudioWorkletNode)m.push('This browser lacks AudioWorklet. Use a current Safari or Chrome.');
+ if(m.length){w.classList.remove('hid');w.innerHTML='<b class="bad">Check:</b> '+m.join(' ')}})();
+/* ---------- storage (IndexedDB) ---------- */
+function dbOpen(){return new Promise(function(res){try{var q=indexedDB.open('vocalbooth',1);q.onupgradeneeded=function(){q.result.createObjectStore('kv')};q.onsuccess=function(){S.db=q.result;res()};q.onerror=function(){res()}}catch(e){res()}})}
+function dbGet(k){return new Promise(function(res){if(!S.db)return res(null);try{var r=S.db.transaction('kv').objectStore('kv').get(k);r.onsuccess=function(){res(r.result||null)};r.onerror=function(){res(null)}}catch(e){res(null)}})}
+function dbSet(k,v){return new Promise(function(res){if(!S.db)return res();try{var t=S.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=function(){res()};t.onerror=function(){res()}}catch(e){res()}})}
+/* ---------- parsing the .rpp intent map ---------- */
+function parseRpp(txt,name){
+ var P={name:name,cfg:{},songs:[]},cur=null,byN={};
+ txt.split(/\r?\n/).forEach(function(l){
+  var m=l.match(/^\s*\|\s*(VOX[A-Z]+)\s*;\s*(.*)$/);if(!m)return;
+  var f=m[2].split(/\s;\s?|;\s/).map(function(x){return x.trim()}),k=m[1];
+  if(k==='VOXSONG'){cur={n:+f[0],name:f[1],title:f[6]||'',t0:+f[2],t1:+f[3],bpm:+f[4]||100,sig:f[5]||'4/4',secs:[],lines:[]};byN[cur.n]=cur;P.songs.push(cur)}
+  else if(k==='VOXSEC'){var s=byN[+f[0]];if(s)s.secs.push({name:f[1],t0:+f[2],t1:+f[3],role:f[4],sung:f[5]==='1',key:f[6],bpm:+f[9]||s.bpm,lines:[]})}
+  else if(k==='VOXLINE'){var g=byN[+f[0]];if(g){var raw=f.slice(10).join('; '),pp=raw.split(' \u00a6 '),ln={sec:f[1],role:f[2],t0:+f[3],t1:+f[4],syl:+f[5],layer:f[9]||'-',grid:+f[8]||0.5,text:pp[0],ad:(pp[1]||'').trim()};g.lines.push(ln)}}
+ });
+ P.songs.forEach(function(s){s.lines.forEach(function(l){var sc=null;s.secs.forEach(function(x){if(!sc&&x.name===l.sec&&l.t0>=x.t0-0.01&&l.t0<=x.t1+0.01)sc=x});if(!sc)s.secs.forEach(function(x){if(!sc&&x.name===l.sec)sc=x});if(sc){sc.lines.push(l);l.secRef=sc}});});
+ return P}
+/* ---------- a .vmlyr lyrics project on its own: lines timed from bars and tempo, from the start of each song ---------- */
+function projFromVmlyr(txt,name){var j;try{j=JSON.parse(txt)}catch(e){return null}
+ var st=j&&j.state;if(!st||!st.songs||!st.songs.length)return null;var P={name:name,cfg:{},songs:[],fromLyr:true};
+ st.songs.forEach(function(sg,i){var s={n:i+1,name:sg.name||sg.title||('Song '+(i+1)),title:(sg.title&&sg.title!==sg.name)?sg.title:'',t0:0,t1:0,bpm:sg.bpm||100,sig:(sg.sig&&sg.sig!=='mixed')?sg.sig:'4/4',secs:[],lines:[]},cur=0,done=0;
+  (sg.secs||[]).slice().sort(function(a,b){return (a.bar0||0)-(b.bar0||0)}).forEach(function(c){
+   var beats=c.beats||4,bpm=c.bpm||sg.bpm||100,barS=beats*60/bpm,gap=((c.bar0||1)-1)-done;if(gap>0)cur+=gap*barS;
+   var t0=cur,dur=(c.bars||0)*barS;cur+=dur;done=(c.bar0||1)-1+(c.bars||0);
+   var ls=(c.lines||[]).filter(function(l){return (l.t||'').trim()}),sec={name:c.name,t0:t0,t1:t0+dur,role:c.role||'',sung:c.vox!==false&&ls.length>0,key:'',bpm:bpm,lines:[]},bpl=(c.frame&&c.frame.bpl)||(ls.length?(c.bars||1)/ls.length:1);
+   ls.forEach(function(l,k){var a=t0+k*bpl*barS,b=a+bpl*barS*0.94,ly=l.ly||'',ln={sec:c.name,role:c.role||'',t0:a,t1:b,syl:l.tg||0,layer:/harmony/.test(ly)?'harm':/double/.test(ly)?'double':'-',ly:ly,text:l.t.trim(),ad:((l.pre||'')+' '+(l.post||'')).trim(),secRef:sec};sec.lines.push(ln);s.lines.push(ln)});
+   s.secs.push(sec)});
+  s.t1=cur;P.songs.push(s)});
+ return P}
+/* ---------- parsing a lyrics file ---------- */
+function parseLyr(txt,name){
+ var songs=[];
+ try{var j=JSON.parse(txt);var st=j&&j.state;if(st&&st.songs){st.songs.forEach(function(sg){var o={title:sg.title||sg.name,secs:[]};(sg.secs||[]).forEach(function(sc){var L=(sc.lines||[]).map(function(l){return (l.t||'').trim()}).filter(Boolean);if(L.length)o.secs.push({name:sc.name,lines:L})});songs.push(o)});return songs}}catch(e){}
+ var cur=null,sec=null;
+ txt.split(/\r?\n/).forEach(function(raw){var l=raw.replace(/\s+$/,'');if(!l.trim())return;
+  var h=l.match(/^\s*(\d{1,3})\s{2,}(.+)$/);
+  if(h){cur={title:h[2].trim(),secs:[]};songs.push(cur);sec=null;return}
+  var sm=l.match(/^\s*\[(.+)\]\s*$/);
+  if(sm){if(!cur){cur={title:'Song',secs:[]};songs.push(cur)}sec={name:sm[1].trim(),lines:[]};cur.secs.push(sec);return}
+  if(sec)sec.lines.push(l.trim())});
+ return songs}
+function applyLyrics(){
+ var P=S.proj,L=S.lyr;if(!P||!L||!L.length)return 0;var used=0;
+ P.songs.forEach(function(s,i){
+  var m=null;if(L.length===P.songs.length)m=L[i];
+  if(!m)L.forEach(function(x){if(!m&&norm(x.title)&&(norm(x.title)===norm(s.name)||norm(x.title)===norm(s.title)))m=x});
+  if(!m)return;
+  if(m.title)s.newTitle=m.title;
+  var pool={};m.secs.forEach(function(x){(pool[norm(x.name)]=pool[norm(x.name)]||[]).push(x)});
+  var seen={};
+  s.secs.forEach(function(sc){var key=norm(sc.name),k=seen[key]||0;var cand=pool[key]&&pool[key][k];if(!cand&&pool[key]&&pool[key].length)cand=pool[key][pool[key].length-1];seen[key]=k+1;if(!cand)return;
+   sc.lines.forEach(function(ln,j){if(cand.lines[j]){ln.text=cand.lines[j];used++}})});
+ });
+ return used}
+/* ---------- loading files ---------- */
+function readText(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=rej;r.readAsText(f)})}
+function readBuf(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=rej;r.readAsArrayBuffer(f)})}
+$('fRpp').onchange=function(e){var f=e.target.files[0];if(!f)return;readText(f).then(function(t){var P=/^\s*\{/.test(t)?projFromVmlyr(t,f.name):parseRpp(t,f.name);if(!P||!P.songs.length){$('loadMsg').innerHTML='<span class="bad">Nothing to sing was found in that file. Use an .rpp from VigilMaster V114 or later, a Vocal Booth file from the Lyrics tab, or a .vmlyr lyrics project.</span>';return}
+ S.proj=P;var n=applyLyrics();$('loadMsg').textContent=P.songs.length+' song'+(P.songs.length>1?'s':'')+' loaded'+(n?'; '+n+' lines of words taken from the lyrics file':'')+'.'+(P.fromLyr?' Lines are timed from bars and tempo, counted from the start of each song.':'');dbSet('proj:'+f.name,P);showSongs()})};
+$('fLyr').onchange=function(e){var f=e.target.files[0];if(!f)return;readText(f).then(function(t){if(!S.proj&&/^\s*\{/.test(t)){var Q=projFromVmlyr(t,f.name);if(Q){S.proj=Q;$('loadMsg').textContent=Q.songs.length+' song'+(Q.songs.length>1?'s':'')+' loaded from the lyrics project. Lines are timed from bars and tempo, counted from the start of each song.';dbSet('proj:'+f.name,Q);showSongs();return}}S.lyr=parseLyr(t,f.name);var n=applyLyrics();$('loadMsg').textContent='Lyrics for '+S.lyr.length+' song'+(S.lyr.length===1?'':'s')+' read'+(S.proj?'; '+n+' lines applied.':'. Now load the .rpp.');if(S.proj)showSongs()})};
+$('fAud').onchange=function(e){Array.prototype.forEach.call(e.target.files,function(f){S.audio.push({name:f.name,file:f,buf:null})});$('loadMsg').textContent=S.audio.length+' audio file'+(S.audio.length===1?'':'s')+' ready.';if(S.proj)showSongs()};
+function audioFor(s){var P=S.proj,key=norm(s.name),k2=norm(s.title),hit=null;
+ if(s.audio)return s.audio;
+ S.audio.forEach(function(a){var n=norm(a.name);if(!hit&&((key.length>2&&n.indexOf(key)>=0)||(k2.length>2&&n.indexOf(k2)>=0)))hit=a});
+ if(!hit&&S.audio.length===1)hit=S.audio[0];return hit}
+function showSongs(){var P=S.proj;if(!P)return;var h='';
+ P.songs.forEach(function(s,i){var a=audioFor(s),done=takeCount(s);
+  h+='<div class="song"><div><b>'+esc(s.title||s.name)+'</b>'+(s.title?' <span class="small">('+esc(s.name)+')</span>':'')+'<div class="small">'+s.bpm+' bpm '+esc(s.sig)+' · '+s.secs.filter(function(x){return x.sung}).length+' sung sections · '+(a?'audio: '+esc(a.name):'no audio, click track')+(done?' · <span class="ok">'+done+' layer'+(done>1?'s':'')+' recorded</span>':'')+'</div></div><button data-i="'+i+'" class="pri">Open</button></div>'});
+ $('songs').innerHTML=h;$('songsCard').classList.remove('hid');
+ Array.prototype.forEach.call($('songs').querySelectorAll('button'),function(b){b.onclick=function(){openSong(+b.dataset.i)}})}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+/* ---------- takes ---------- */
+function tkey(s,L){return 'takes:'+S.proj.name+':'+s.n+':'+(L||S.layer)}
+function takeCount(s){var n=0;LAYERS.forEach(function(l){var t=S.takes[tkey(s,l[0])];if(t&&t.length)n++});return n}
+function loadTakes(s){return Promise.all(LAYERS.map(function(l){var k=tkey(s,l[0]);return dbGet(k).then(function(v){if(v&&!S.takes[k])S.takes[k]=v;if(!S.takes[k])S.takes[k]=[]})}))}
+function saveTakes(s){return dbSet(tkey(s),S.takes[tkey(s)])}
+function gkey(){return 'vb:g:'+S.proj.name+':'+S.song.n+':'+S.layer}
+function getGain(){try{var v=JSON.parse(localStorage.getItem(gkey())||'null');return v}catch(e){return null}}
+function setGain(db,set){try{localStorage.setItem(gkey(),JSON.stringify({db:db,set:!!set}))}catch(e){}}
+function curDb(){var g=getGain();return g?g.db:0}
+function showGain(){var g=getGain();$('gain').value=g?g.db:0;$('gDb').textContent=(g?g.db:0)+' dB'+(g&&g.set?'':(getGain()?'':' (not set yet)'))}
+/* ---------- the booth ---------- */
+function getCtx(){if(!S.ctx){var C=window.AudioContext||window.webkitAudioContext;S.ctx=new C({latencyHint:'interactive'})}if(S.ctx.state==='suspended')S.ctx.resume();return S.ctx}
+function openSong(i){var s=S.proj.songs[i];S.song=s;S.pl={};S.rv=null;S.buf=null;
+ return loadTakes(s).then(function(){
+  $('home').classList.add('hid');$('booth').classList.remove('hid');
+  $('sName').textContent=(s.title||s.name)+(s.title?' ('+s.name+')':'');$('sInfo').textContent=s.bpm+' bpm, '+s.sig+', '+fmt(s.t1-s.t0)+' of song';
+  S.pi=firstNeed();exitReview();drawAll();setAudio();refreshMics();return S.audP})}
+function drawAll(){drawLayers();drawParts();drawDet();showGain();showReuse();stageIdle()}
+$('back').onclick=function(){stopAll();S.song=null;$('booth').classList.add('hid');$('home').classList.remove('hid');showSongs()};
+/* ---------- the plan: which lines belong to a layer, and the parts they are sung in ---------- */
+function okey(L){return 'vb:o:'+S.proj.name+':'+S.song.n+':'+(L||S.layer)}
+function getOpts(L){try{return JSON.parse(localStorage.getItem(okey(L))||'null')||{}}catch(e){return {}}}
+function setOpts(L,o){try{localStorage.setItem(okey(L),JSON.stringify(o))}catch(e){}S.pl={}}
+function reuseOn(L){var o=getOpts(L);return o.reuse===undefined?(L==='harm'||L==='ad'):!!o.reuse}
+function selLines(L){ /* every line this layer sings, across the song, in time order */
+ var s=S.song,sec=[],all=[];
+ s.secs.forEach(function(x,i){if(x.sung&&x.lines.length)sec.push({x:x,i:i})});
+ function mk(l,o,k,ex){var r={t0:l.t0,t1:l.t1,text:l.text,cue:'',layer:(l.layer==='adlib'?'-':l.layer),role:l.role,ly:l.ly,secRef:o.x,si:o.i,k:k,ref:l};for(var p in ex)r[p]=ex[p];return r}
+ sec.forEach(function(o){o.x.lines.forEach(function(l,k){all.push(mk(l,o,k,{}))})});
+ if(L==='lead')return all;
+ if(L==='double'){var d=all.filter(function(r){return /double/.test(r.ly||'')||r.layer==='double'});return d.length?d:all}
+ if(L==='harm'){var h=all.filter(function(r){return /harmony/.test(r.ly||'')||r.layer==='harm'||r.layer==='backing'});if(h.length)return h;h=all.filter(function(r){return r.role==='chorus'||r.layer==='double'});return h.length?h:all}
+ var a=all.filter(function(r){return r.ref.ad}).map(function(r){return mk(r.ref,{x:r.secRef,i:r.si},r.k,{text:r.ref.ad,cue:r.text,isAd:true})});
+ if(a.length)return a;
+ return sec.map(function(o){return{t0:o.x.t0,t1:o.x.t1,text:'(ad-lib wherever it fits)',cue:o.x.name,layer:'-',role:o.x.role,secRef:o.x,si:o.i,k:0,free:true,ref:null}})}
+function sigOf(L,g){if(g[0].free)return '';var t=g.map(function(r){return r.text}).join(' ');t=norm(t);if(L==='ad'||L==='harm')t=t.replace(/(.)\1+/g,'$1');return t}
+function findP(P,pid){for(var i=0;i<P.length;i++)if(P[i].pid===pid)return P[i];return null}
+function buildPlan(L){
+ var s=S.song,items=selLines(L),by={},P=[];
+ items.forEach(function(it){(by[it.si]=by[it.si]||[]).push(it)});
+ Object.keys(by).map(Number).sort(function(a,b){return a-b}).forEach(function(si){var arr=by[si],sc=s.secs[si],groups=[];
+  if(L==='ad'){arr.forEach(function(it){groups.push([it])})}
+  else{var g=[];arr.forEach(function(it){if(g.length&&it.k!==g[g.length-1].k+1){groups.push(g);g=[]}g.push(it)});if(g.length)groups.push(g)}
+  groups.forEach(function(g,gi){
+   var f=g[0],l=g[g.length-1],nx=sc.lines[l.k+1],a,b,lab;
+   if(f.free){a=sc.t0-0.2;b=sc.t1}
+   else{a=f.t0-(L==='ad'?0.5:0.35);b=nx?Math.max(nx.t0,l.t1+0.3):Math.max(sc.t1,l.t1+0.3)}
+   lab=sc.name+(groups.length>1&&L!=='ad'?' ('+(gi+1)+')':'');
+   if(L==='ad'&&!f.free){var w=f.text;lab+=': '+(w.length>16?w.slice(0,15)+'…':w)}
+   P.push({pid:L+':'+si+':'+f.k,L:L,si:si,secRef:sc,label:lab,lines:g,a:a,b:b,anchor:f.free?sc.t0:f.t0,sig:sigOf(L,g),n:g.length,len:b-a})})});
+ for(var i=0;i<P.length;i++){P[i].i=i;if(i&&P[i-1].b>P[i].a)P[i-1].b=Math.max(P[i-1].a+0.5,P[i].a)}
+ return P}
+function getPlan(L){L=L||S.layer;if(S.pl[L])return S.pl[L];
+ var P=buildPlan(L),o=getOpts(L),ov=o.ov||{};
+ P.forEach(function(p){p.mode='rec';p.src=null;p.root=null;p.auto=false;p.len=p.b-p.a});
+ if(reuseOn(L)){var seen={};P.forEach(function(p){if(!p.sig)return;var q=seen[p.sig];if(q){if(q.n===p.n&&Math.min(q.len,p.len)/Math.max(q.len,p.len)>=0.7){p.mode='copy';p.src=q.pid;p.auto=true}}else seen[p.sig]=p})}
+ P.forEach(function(p){var v=ov[p.pid];if(v==='rec'){p.mode='rec';p.src=null;p.auto=false}else if(v&&String(v).indexOf('src:')===0){var sp=findP(P,String(v).slice(4));if(sp&&sp!==p){p.mode='copy';p.src=sp.pid;p.auto=false}}});
+ P.forEach(function(p){if(p.mode!=='copy')return;var r=p,g=0;while(r&&r.mode==='copy'&&g++<10)r=findP(P,r.src);if(r&&r.mode==='rec'&&r!==p)p.root=r.pid;else{p.mode='rec';p.src=null}});
+ S.pl[L]=P;return P}
+function findTake(T,pid){for(var i=T.length-1;i>=0;i--)if(T[i].pid===pid)return T[i];return null}
+function nextNeed(pi){var P=getPlan(S.layer),T=S.takes[tkey(S.song)]||[];for(var k=pi+1;k<P.length;k++)if(P[k].mode==='rec'&&!findTake(T,P[k].pid))return k;return -1}
+function prevRec(pi){var P=getPlan(S.layer);for(var k=pi-1;k>=0;k--)if(P[k].mode==='rec')return k;return -1}
+function firstNeed(){var n=nextNeed(-1);return n>=0?n:0}
+function layerProg(L){var T=S.takes[tkey(S.song,L)]||[],P=getPlan(L),need=0,have=0;P.forEach(function(p){if(p.mode==='rec'){need++;if(findTake(T,p.pid))have++}});
+ return{need:need,have:have,legacy:T.some(function(t){return !t.pid}),any:T.length>0,copies:P.length-need}}
+function drawLayers(){var h='';
+ LAYERS.forEach(function(l){var g=layerProg(l[0]),done=g.any&&(g.legacy||(g.need>0&&g.have>=g.need));
+  h+='<span class="chip'+(S.layer===l[0]?' on':'')+(done?' done':'')+'" data-l="'+l[0]+'">'+esc(l[1])+(g.any&&!g.legacy?' '+g.have+'/'+g.need:'')+(done?' ✓':'')+'</span>'});
+ $('lay').innerHTML=h;
+ Array.prototype.forEach.call($('lay').querySelectorAll('.chip'),function(c){c.onclick=function(){if(S.rec||S.play)return;S.layer=c.dataset.l;exitReview();S.pi=firstNeed();drawAll()}})}
+function drawParts(){var P=getPlan(S.layer),T=S.takes[tkey(S.song)]||[],h='',g=layerProg(S.layer);
+ if(S.pi>=P.length||S.pi<0)S.pi=0;
+ P.forEach(function(p,i){var has=!!findTake(T,p.pid),cls='chip'+(S.pi===i?' on':'')+(p.mode==='copy'?' cp':(has?' done':'')),r=p.mode==='copy'?findP(P,p.root):null;
+  h+='<span class="'+cls+'" data-i="'+i+'">'+(i+1)+' '+esc(p.label)+(r?' = '+(r.i+1):(has?' ✓':''))+'</span>'});
+ $('secs').innerHTML=h||'<span class="small">No sung lines in this song.</span>';
+ $('pHead').textContent=P.length?(layerInfo(S.layer)[1]+': '+P.length+' part'+(P.length>1?'s':'')+(g.copies?', '+g.need+' to sing and '+g.copies+' copied from an earlier part':'')+'. '+g.have+' sung so far.'):'';
+ Array.prototype.forEach.call($('secs').querySelectorAll('.chip'),function(c){c.onclick=function(){if(S.rec||S.play)return;exitReview();S.pi=+c.dataset.i;drawParts();drawDet();stageIdle()}})}
+function drawDet(){var P=getPlan(S.layer),p=P[S.pi],el=$('pdet');if(!p){el.innerHTML='';return}
+ var T=S.takes[tkey(S.song)]||[],has=!!findTake(T,p.pid),h;
+ if(p.mode==='copy'){var r=findP(P,p.root);h='<span class="ok">Part '+(p.i+1)+' is a copy of part '+(r.i+1)+'.</span> You do not sing it. It is placed here when you export.'}
+ else h=(has?'<span class="ok">Part '+(p.i+1)+' is recorded.</span>':'Part '+(p.i+1)+' still to sing.');
+ h+='<div style="margin-top:4px"><select id="pSrc"><option value="rec">Sing this part</option>';
+ P.forEach(function(q){if(q.i===p.i||q.mode!=='rec')return;h+='<option value="src:'+esc(q.pid)+'">Same as part '+(q.i+1)+': '+esc(q.label)+'</option>'});
+ h+='</select></div>';el.innerHTML=h;
+ var sel=$('pSrc');sel.value=p.mode==='copy'?'src:'+p.src:'rec';if(sel.value!==(p.mode==='copy'?'src:'+p.src:'rec'))sel.value='rec';
+ sel.onchange=function(){if(S.rec||S.play){drawDet();return}var o=getOpts(S.layer);o.ov=o.ov||{};o.ov[p.pid]=sel.value;setOpts(S.layer,o);exitReview();drawAll()}}
+function showReuse(){showGuide();$('cReuse').checked=reuseOn(S.layer)}
+['cDot','cBeat','cTick'].forEach(function(id){try{var v=localStorage.getItem('vb:'+id);if(v!==null)$(id).checked=v==='1'}catch(e){}$(id).onchange=function(){try{localStorage.setItem('vb:'+id,$(id).checked?'1':'0')}catch(e){}stageIdle()}});
+$('cReuse').onchange=function(){var o=getOpts(S.layer);o.reuse=$('cReuse').checked;if(o.ov)for(var k in o.ov)delete o.ov[k];setOpts(S.layer,o);exitReview();S.pi=firstNeed();drawAll()};
+/* after a part is kept: continue, redo, or step back */
+function exitReview(){S.rv=null;$('rv').classList.add('hid')}
+function enterReview(pi){S.rv={pi:pi};S.pi=pi;var P=getPlan(S.layer),nx=nextNeed(pi),pv=prevRec(pi);$('rv').classList.remove('hid');
+ $('bNext').textContent=nx>=0?'Continue: part '+(nx+1)+' of '+P.length:'All parts are sung';$('bNext').disabled=nx<0;
+ $('bPrev').textContent=pv>=0?'Back: part '+(pv+1):'Back one part';$('bPrev').disabled=pv<0;
+ drawLayers();drawParts();drawDet();stageIdle();
+ var skip=[];if(nx>=0){for(var k=pi+1;k<nx;k++)if(P[k].mode==='copy')skip.push(k+1)}else{for(var k2=pi+1;k2<P.length;k2++)if(P[k2].mode==='copy')skip.push(k2+1)}
+ $('curL').innerHTML='<span class="w" style="--p:100%">Part '+(pi+1)+' kept</span>';
+ $('n1').textContent=nx>=0?'Next, part '+(nx+1)+': '+(P[nx].lines[0].cue||P[nx].lines[0].text):'That was the last part to sing. Export when you are ready.';
+ $('n2').textContent=skip.length?'Copied for you, nothing to sing: part'+(skip.length>1?'s ':' ')+skip.join(', '):''}
+function setAudio(){var a=audioFor(S.song);$('audMsg').textContent=a?('Demo: '+a.name):'No demo audio for this song yet. Pick it below, or use the click track.';
+ $('cClick').checked=!a;S.buf=null;S.audP=Promise.resolve();
+ if(a){var go=function(){var ctx=getCtx();return ctx.decodeAudioData(a.buf.slice(0)).then(function(b){S.buf=b;$('audMsg').textContent='Demo: '+a.name+' ('+fmt(b.duration)+')';log('decoded '+a.name+' '+b.duration.toFixed(1)+'s '+b.sampleRate+'Hz')}).catch(function(e){$('audMsg').innerHTML='<span class="bad">Could not read that audio: '+esc(e&&e.message||e)+'</span>';$('cClick').checked=true})};
+  S.audP=a.buf?go():readBuf(a.file).then(function(b){a.buf=b;return go()})}}
+$('fAud2').onchange=function(e){var f=e.target.files[0];if(!f)return;var a={name:f.name,file:f,buf:null};S.song.audio=a;S.audio.push(a);setAudio()};
+function audOffset(){ /* timeline second at which the audio file begins */
+ var m=$('audMode').value,P=S.proj,b=S.buf;if(!b)return 0;
+ var plen=Math.max.apply(null,P.songs.map(function(x){return x.t1})),slen=S.song.t1-S.song.t0;
+ if(m==='proj')return 0;if(m==='song')return S.song.t0;
+ if(P.songs.length===1||S.song.t0<1)return Math.abs(b.duration-plen)<Math.abs(b.duration-slen)?0:S.song.t0;
+ return Math.abs(b.duration-slen)<Math.abs(b.duration-plen)?S.song.t0:0}
+function clickBuf(from,to){var ctx=getCtx(),sr=ctx.sampleRate,n=Math.ceil((to-from)*sr),b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0),bpm=S.song.bpm,beat=60/bpm,num=+String(S.song.sig).split('/')[0]||4;
+ var o0=S.song.t0||0,k=Math.ceil((from-o0)/beat-1e-6);for(var t=o0+k*beat;t<to;t+=beat,k++){var i=Math.round((t-from)*sr),hi=(((k%num)+num)%num)===0,f=hi?1500:1000;for(var j=0;j<2400&&i+j<n;j++){if(i+j<0)continue;d[i+j]+=Math.sin(2*Math.PI*f*j/sr)*Math.exp(-j/500)*(hi?.5:.3)}}
+ return b}
+function stageIdle(){$('cd').textContent='';ballOff();var P=getPlan(S.layer),p=P[S.pi];
+ if(!p){$('secLbl').textContent='';$('curL').innerHTML='<span class="small">No sung lines in this song.</span>';$('n1').textContent='';$('n2').textContent='';return}
+ var ls=p.lines;$('secLbl').textContent='Part '+(S.pi+1)+' of '+P.length+' · '+p.label+' · '+fmt(p.a)+' to '+fmt(p.b)+(p.secRef.key?' · '+p.secRef.key:'');
+ $('curL').innerHTML=lineHtml(ls[0],0);$('n1').textContent=ls[1]?(ls[1].cue||ls[1].text):'';$('n2').textContent=ls[2]?(ls[2].cue||ls[2].text):''}
+/* ---------- syllables and the bouncing dot ---------- */
+var VW='aeiouyà-ÿ';
+function syl(w){var lead=(w.match(/^[^A-Za-zÀ-ɏ']*/)||[''])[0],trail=(w.slice(lead.length).match(/[^A-Za-zÀ-ɏ']*$/)||[''])[0],core=w.slice(lead.length,w.length-trail.length);
+ if(!core)return[w];var re=new RegExp('[^'+VW+']*[' +VW+']+(?:[^'+VW+']*$|[^'+VW+'](?=[^'+VW+']))?','gi'),m=core.match(re)||[core];
+ if(m.length>1&&/^[^aeiouy]*e$/i.test(m[m.length-1])&&!(/[^aeiouy]le$/i.test(m[m.length-1])||(/^le$/i.test(m[m.length-1])&&/[^aeiouy]$/i.test(m[m.length-2])))){var l=m.pop();m[m.length-1]+=l}
+ m[0]=lead+m[0];m[m.length-1]+=trail;return m}
+function gridDur(it){var bpm=(it.secRef&&it.secRef.bpm)||S.song.bpm||100,g=(it.ref&&it.ref.grid)||0.5;return g*60/bpm}
+function dotPlan(it){if(it.dot!==undefined)return it.dot;if(it.free||it.isAd||!it.text){it.dot=null;return null}
+ var ch=[];String(it.text).split(/\s+/).filter(Boolean).forEach(function(w,wi){var c=syl(w);c.forEach(function(x,ci){ch.push({txt:x,wi:wi,sp:ci===c.length-1})})});
+ var T=ch.length;if(T<1){it.dot=null;return null}
+ var L=Math.max(0.6,it.t1-it.t0),g=gridDur(it),span=L*0.9,last=-1,i;
+ for(i=0;i<T;i++){var raw=T>1?span*i/T:0,n=Math.round(raw/g);if(n<=last)n=last+1;last=n;ch[i].t=it.t0+n*g}
+ if(ch[T-1].t>it.t1-0.1){for(i=0;i<T;i++)ch[i].t=it.t0+span*i/T}
+ it.dot=ch;return ch}
+function dotOn(){return $('cDot').checked}
+function lineHtml(l,p){var cue=l.cue?'<div class="small">around: '+esc(l.cue)+'</div>':'';var LB={adlib:'ad-lib after this line',double:'sing it twice for the double',harm:'harmony line',backing:'backing'},tg=(l.layer&&l.layer!=='-'?'<div><span class="tag">'+esc(LB[l.layer]||l.layer)+'</span></div>':'');
+ var pl=dotOn()?dotPlan(l):null,body;
+ if(pl){body='';pl.forEach(function(c,k){body+='<span class="sy" data-k="'+k+'">'+esc(c.txt)+'</span>'+(c.sp?' ':'')})}
+ else body='<span class="w" style="--p:'+(p*100).toFixed(1)+'%">'+esc(l.text)+'</span>';
+ return tg+body+cue}
+function ballOff(){$('ball').style.display='none'}
+function ballFrame(l,t){var b=$('ball'),pl=dotOn()?dotPlan(l):null;if(!pl){b.style.display='none';return}
+ var sp=$('curL').querySelectorAll('.sy');if(sp.length!==pl.length){b.style.display='none';return}
+ var k=-1,i;for(i=0;i<pl.length;i++)if(t>=pl[i].t-0.005)k=i;
+ for(i=0;i<sp.length;i++){var on=i<=k;if(sp[i].classList.contains('hit')!==on)sp[i].classList.toggle('hit',on)}
+ var st=$('stage').getBoundingClientRect();
+ function ctr(j){var r=sp[j].getBoundingClientRect();return{x:r.left+r.width/2-st.left,y:r.top-st.top}}
+ var H=34,x,y,a,c,ph;
+ if(k<0){a=ctr(0);x=a.x;y=a.y;var beat=60/(S.song.bpm||100);ph=(((pl[0].t-t)/beat)%1+1)%1;ph=1-ph;y-=H*0.6*4*ph*(1-ph)*(pl[0].t-t<4?1:0)}
+ else if(k<pl.length-1){a=ctr(k);c=ctr(k+1);ph=Math.min(1,Math.max(0,(t-pl[k].t)/(pl[k+1].t-pl[k].t)));x=a.x+(c.x-a.x)*ph;y=a.y+(c.y-a.y)*ph-H*4*ph*(1-ph)}
+ else{a=ctr(k);x=a.x;y=a.y}
+ b.style.display='block';b.style.left=(x-11)+'px';b.style.top=(y-22)+'px'}
+function tickBuf(from,to,items){var ctx=getCtx(),sr=ctx.sampleRate,n=Math.ceil((to-from)*sr),b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0);
+ items.forEach(function(it){var pl=dotPlan(it);if(!pl)return;pl.forEach(function(c,k){if(c.t<from||c.t>=to)return;var i=Math.round((c.t-from)*sr),a=k===0?0.5:0.3;for(var j=0;j<420&&i+j<n;j++)d[i+j]+=Math.sin(2*Math.PI*2400*j/sr)*Math.exp(-j/110)*a})});return b}
+/* ---------- microphone and recording ---------- */
+var WK="class R extends AudioWorkletProcessor{process(i){var c=i[0]&&i[0][0];if(c){this.port.postMessage({f:currentFrame,d:c.slice(0)})}return true}}registerProcessor('rec',R);";
+function refreshMics(){if(!(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices))return;navigator.mediaDevices.enumerateDevices().then(function(ds){var sel=$('mic'),cur=sel.value||localStorage.getItem('vb:mic')||'',h='<option value="">Default</option>';ds.filter(function(d){return d.kind==='audioinput'&&d.deviceId&&d.deviceId!=='default'}).forEach(function(d,i){h+='<option value="'+esc(d.deviceId)+'">'+esc(d.label||('Microphone '+(i+1)))+'</option>'});sel.innerHTML=h;sel.value=cur;if(sel.value!==cur)sel.value=''}).catch(function(){})}
+$('mic').onchange=function(){try{localStorage.setItem('vb:mic',$('mic').value)}catch(e){}};
+function openMic(ctx){var dev=$('mic').value,c={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1};if(dev)c.deviceId={exact:dev};
+ return navigator.mediaDevices.getUserMedia({audio:c}).then(function(stream){
+  var ready=S.wk===ctx?Promise.resolve():ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WK],{type:'application/javascript'}))).then(function(){S.wk=ctx});
+  return ready.then(function(){var src=ctx.createMediaStreamSource(stream),node=new AudioWorkletNode(ctx,'rec',{numberOfInputs:1,numberOfOutputs:1,channelCount:1,channelCountMode:'explicit'}),mute=ctx.createGain();mute.gain.value=0;src.connect(node);node.connect(mute);mute.connect(ctx.destination);var M={stream:stream,node:node,src:src,blocks:[]};node.port.onmessage=function(m){M.blocks.push(m.data);if(M.onblock)M.onblock(m.data)};refreshMics();return M})})}
+function closeMic(M){try{M.node.disconnect();M.src.disconnect()}catch(e){}M.stream.getTracks().forEach(function(t){t.stop()})}
+function othersBuf(ctx){ /* the layers already recorded, mixed, for singing along or listening */
+ var s=S.song,sr=null,parts=[];LAYERS.forEach(function(l){if(l[0]===S.layer)return;var A=assemble(l[0]);if(A)parts.push(A)});if(!parts.length)return null;sr=parts[0].sr;var n=parts[0].data.length,b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0);parts.forEach(function(A){for(var i=0;i<n&&i<A.data.length;i++)d[i]+=A.data[i]*0.7});return{buf:b,t0:parts[0].t0}}
+function wake(on){try{if(on&&navigator.wakeLock){navigator.wakeLock.request('screen').then(function(l){S.wl=l}).catch(function(){})}else if(!on&&S.wl){S.wl.release();S.wl=null}}catch(e){}}
+function startRec(whole,pi){
+ if(S.rec||S.play)return;if(guideOn()&&S.layer==='lead'){whole=true;pi=0}var s=S.song,P=getPlan(S.layer),pc=null;
+ if(whole){var T0=S.takes[tkey(s)]||[];if(T0.some(function(t){return t.pid})&&!window.confirm('A whole-song take replaces the part takes you already sang on this layer. Continue?'))return}
+ else{pc=P[pi];if(!pc){$('boothMsg').textContent='This layer has no parts to sing.';return}if(pc.mode==='copy'){var nn=nextNeed(pi);if(nn<0){$('boothMsg').textContent='Part '+(pi+1)+' is a copy of an earlier part, so there is nothing to sing here. Choose "Sing this part" above if you want to record it anyway.';return}pi=nn;pc=P[pi]}}
+ var ctx=getCtx(),useClick=$('cClick').checked||!S.buf;
+ var spb=60/s.bpm,pre=Math.max(2,spb*4);if(S.q&&S.q.active&&!whole)pre=Math.max(pre,S.q.lead);var lat0=(ctx.outputLatency||0)+(ctx.baseLatency||0)+((+$('trim').value||0)/1000);
+ var tFrom,tTo,keepFrom,keepTo;
+ if(whole){tFrom=s.t0-pre;tTo=s.t1+1;keepFrom=s.t0-0.5;keepTo=s.t1+1.5}
+ else{tFrom=pc.a-pre;keepFrom=pc.a;keepTo=pc.b;tTo=pc.b+Math.max(0.3,lat0+0.15)}
+ if(tFrom<0)tFrom=0;
+ exitReview();S.pi=whole?S.pi:pi;
+ $('boothMsg').textContent='Asking for the microphone';
+ openMic(ctx).then(function(M){
+  var peak=0;S.hold=0;var g0=Math.pow(10,curDb()/20);M.onblock=function(b){var d=b.d,p=0;for(var i=0;i<d.length;i++){var a=Math.abs(d[i]);if(a>p)p=a}p*=g0;peak=Math.max(peak*0.9,p);S.peak=peak;if(p>S.hold)S.hold=p};
+  var startAt=ctx.currentTime+0.2,srcNode=ctx.createBufferSource(),off=0,extra=[];
+  if(useClick){srcNode.buffer=clickBuf(tFrom,tTo)}else{srcNode.buffer=S.buf;off=tFrom-audOffset();if(off<0){startAt+=-off;off=0}}
+  var tlStart=useClick?tFrom:audOffset()+off;
+  var g=ctx.createGain();g.gain.value=1;srcNode.connect(g);g.connect(ctx.destination);
+  try{srcNode.start(startAt,off)}catch(e){srcNode.start(startAt)}
+  var itemsT=whole?selLines(S.layer):pc.lines;
+  if(S.q&&S.q.active&&!whole&&itemsT.length){var cbf=ctx.createBufferSource(),cgg=ctx.createGain();cbf.buffer=countBuf(tlStart,tTo,itemsT[0].t0,spb);cgg.gain.value=0.7;cbf.connect(cgg);cgg.connect(ctx.destination);try{cbf.start(startAt)}catch(e){}extra.push(cbf)}
+  if($('cBeat').checked&&!useClick){var cb=ctx.createBufferSource(),cgn=ctx.createGain();cb.buffer=clickBuf(tlStart,tTo);cgn.gain.value=0.5;cb.connect(cgn);cgn.connect(ctx.destination);try{cb.start(startAt)}catch(e){}extra.push(cb)}
+  if($('cTick').checked&&S.layer!=='ad'){var tb=ctx.createBufferSource(),tgn=ctx.createGain();tb.buffer=tickBuf(tlStart,tTo,itemsT);tgn.gain.value=0.6;tb.connect(tgn);tgn.connect(ctx.destination);try{tb.start(startAt)}catch(e){}extra.push(tb)}
+  if($('cOver').checked){var O=othersBuf(ctx);if(O){var os=ctx.createBufferSource();os.buffer=O.buf;os.connect(ctx.destination);var oo=tlStart-O.t0,at=startAt;if(oo<0){at+=-oo;oo=0}try{os.start(at,oo)}catch(e){}extra.push(os)}}
+  wake(true);var R={M:M,srcNode:srcNode,g:g,extra:extra,startAt:startAt,tlStart:tlStart,whole:whole,piece:pc,np:P.length,layer:S.layer,keepFrom:keepFrom,keepTo:keepTo,end:tTo,ctx:ctx};S.rec=R;
+  R.tm=setTimeout(function(){if(S.rec===R)stopRec('auto')},Math.max(1000,(tTo-tlStart)*1000+(startAt-ctx.currentTime)*1000+700));
+  $('bStop').classList.remove('hid');$('bStop').textContent='Stop here and keep it';$('bStop').disabled=false;$('bCancel').classList.remove('hid');$('bCancel').disabled=false;
+  ['bRecAll','bRecParts','bListen','bExport','bExAll','bTest','bClearSec','bNext','bRedo','bPrev','bHear'].forEach(function(i){$(i).disabled=true});
+  $('boothMsg').textContent=whole?'Recording '+layerInfo(S.layer)[1]+'. Sing it once, all the way.':'Part '+(pc.i+1)+' of '+P.length+': sing it once. It stops by itself at the end of its space and fades out, so you cannot spoil it by running over.';runStage(R)
+ }).catch(function(e){$('boothMsg').innerHTML='<span class="bad">Microphone not available: '+esc(e&&e.message||e)+'</span>';S.rec=null})}
+function runStage(R){var s=S.song,ls=R.piece?R.piece.lines:selLines(R.layer);if(!ls.length){stopRec('cancel');return}
+ function tick(){if(S.rec!==R)return;var ctx=R.ctx,t=R.tlStart+(ctx.currentTime-R.startAt);
+  var first=ls[0],cd=first.t0-t;
+  $('cd').textContent=cd>0&&cd<4?String(Math.ceil(cd)):'';
+  var i=0;while(i<ls.length-1&&t>=ls[i+1].t0-0.15)i++;var l=ls[i];
+  var p=Math.min(1,Math.max(0,(t-l.t0)/Math.max(.3,l.t1-l.t0)));
+  var tail='';if(R.piece){var rem=R.piece.b-t;tail=rem>0?(rem<4?' · ends in '+rem.toFixed(1)+' s':' · '+fmt(t)):' · fading out'}else tail=' · '+fmt(t);
+  $('secLbl').textContent=layerInfo(R.layer)[1]+(R.piece?' · part '+(R.piece.i+1)+' of '+R.np:'')+' · '+((l.secRef&&l.secRef.name)||'')+(l.secRef&&l.secRef.key?' · '+l.secRef.key:'')+tail;
+  if(R.curL!==l){R.curL=l;$('curL').innerHTML=lineHtml(l,p);$('n1').textContent=ls[i+1]?(ls[i+1].cue||ls[i+1].text):'';$('n2').textContent=ls[i+2]?(ls[i+2].cue||ls[i+2].text):''}
+  else if(!(dotOn()&&dotPlan(l))){$('curL').innerHTML=lineHtml(l,p)}
+  ballFrame(l,t);
+  var pk=S.peak||0;$('lvl').style.width=Math.min(100,pk*100)+'%';$('lvl').style.background=pk>.97?'var(--rd)':'var(--gn)';
+  $('lvlMsg').textContent=S.hold>=.99?'Too loud somewhere: step back or lower the level.':(S.hold<.03&&ctx.currentTime-R.startAt>4?'Very quiet: hold the phone closer or raise the level.':' ');
+  if(t>=R.end){stopRec('auto');return}
+  S.raf=requestAnimationFrame(tick)}
+ S.raf=requestAnimationFrame(tick)}
+function zeroLegacy(T,a,b){T.forEach(function(t){if(t.pid)return;var i0=Math.max(0,Math.round((a-t.t0)*t.sr)),i1=Math.min(t.data.length,Math.round((b-t.t0)*t.sr));if(i1>i0)t.data.fill(0,i0,i1)})}
+function stopRec(why){var R=S.rec;if(!R)return;S.rec=null;wake(false);cancelAnimationFrame(S.raf);clearTimeout(R.tm);
+ if(why==='auto'){try{var nw=R.ctx.currentTime;R.g.gain.setValueAtTime(R.g.gain.value,nw);R.g.gain.linearRampToValueAtTime(0,nw+0.25)}catch(e){}setTimeout(function(){try{R.srcNode.stop()}catch(e){}},300)}
+ else{try{R.srcNode.stop()}catch(e){}}
+ R.extra.forEach(function(x){try{x.stop()}catch(e){}});closeMic(R.M);
+ var ctx=R.ctx,sr=ctx.sampleRate,lat=(ctx.outputLatency||0)+(ctx.baseLatency||0),user=(+$('trim').value||0)/1000;
+ if(why==='cancel'){$('boothMsg').textContent='Cancelled. The earlier take, if there was one, is kept.';resetBtns();if(R.piece){S.pi=R.piece.i;drawAll()}if(S.q&&S.q.active)quickShow();return}
+ var B=R.M.blocks;if(!B.length){$('boothMsg').textContent='Nothing was recorded.';resetBtns();if(S.q&&S.q.active)quickShow();return}
+ var n=0;B.forEach(function(b){n+=b.d.length});var all=new Float32Array(n),o=0;B.forEach(function(b){all.set(b.d,o);o+=b.d.length});
+ var tFirst=R.tlStart+(B[0].f/sr-R.startAt)-lat-user;
+ var i0=Math.max(0,Math.round((R.keepFrom-tFirst)*sr)),i1=Math.min(n,Math.round((R.keepTo-tFirst)*sr));
+ if(i1<=i0){$('boothMsg').textContent='The take was too short to keep.';resetBtns();if(S.q&&S.q.active)quickShow();return}
+ var data=all.slice(i0,i1),pk0=0;for(var i=0;i<data.length;i+=5){var a=Math.abs(data[i]);if(a>pk0)pk0=a}
+ if(R.piece){var fi=Math.min(data.length,Math.round(0.012*sr)),fo=Math.min(data.length,Math.round(0.35*sr)),k;for(k=0;k<fi;k++)data[k]*=k/fi;for(k=0;k<fo;k++)data[data.length-fo+k]*=0.5+0.5*Math.cos(Math.PI*k/fo)}
+ /* level: the first take of a layer sets it (peak to -6 dB) when Auto is on; later takes reuse it so parts stay even */
+ var gi=getGain(),db,note='';
+ if($('cAuto').checked&&(!gi||!gi.set)&&pk0>=0.004){db=Math.max(-12,Math.min(36,Math.round(20*Math.log10(0.5/pk0))));setGain(db,true);note=' Level set to '+db+' dB for this layer in this song.'}
+ else db=gi?gi.db:0;
+ var gl=Math.pow(10,db/20);for(var k2=0;k2<data.length;k2++){var v=data[k2]*gl;data[k2]=v>1?1:v<-1?-1:v}
+ var peak=Math.min(1,pk0*gl),seg={t0:tFirst+i0/sr,sr:sr,data:data,sec:-1,whole:R.whole,at:Date.now(),db:db};
+ var K=tkey(S.song,R.layer),T=S.takes[K];
+ if(R.piece){seg.pid=R.piece.pid;for(var q=T.length-1;q>=0;q--)if(T[q].pid===seg.pid)T.splice(q,1);zeroLegacy(T,R.piece.a,R.piece.b)}else{T.length=0}
+ T.push(seg);dbSet(K,T);showGain();
+ var pdb=peak>0?20*Math.log10(peak):-99;
+ $('boothMsg').innerHTML=pk0<0.004?'<span class="bad">That take is almost silent. Check the microphone and try again.</span>':'<span class="ok">Take kept.</span> '+fmt(data.length/sr)+' of audio, peak '+pdb.toFixed(1)+' dB.'+note+(peak>=0.99?' It clips: lower the level and record again.':'')+' Latency compensated by '+Math.round((lat+user)*1000)+' ms.';
+ log('take '+R.layer+' '+(R.piece?'part '+(R.piece.i+1):'song')+' t0='+seg.t0.toFixed(2)+' len='+(data.length/sr).toFixed(2)+'s rawpeak='+pk0.toFixed(3)+' gain='+db+'dB');
+ resetBtns();
+ if(S.q&&S.q.active){S.q.idx++;drawAll();quickShow()}else if(R.piece){enterReview(R.piece.i)}else{drawAll()}}
+function resetBtns(){S.hold=0;S.peak=0;$('lvl').style.width='0';$('lvlMsg').innerHTML='&nbsp;';$('bStop').classList.add('hid');$('bCancel').classList.add('hid');['bRecAll','bRecParts','bListen','bExport','bExAll','bTest','bClearSec','bNext','bRedo','bPrev','bHear'].forEach(function(i){$(i).disabled=false});$('cd').textContent=''}
+function stopAll(){if(S.rec)stopRec('cancel');if(S.play){try{S.play.stop()}catch(e){}S.play=null}}
+$('bRecAll').onclick=function(){startRec(true)};$('bRecParts').onclick=function(){startRec(false,S.pi)};
+$('bStop').onclick=function(){if(S.rec)stopRec('manual');else if(S.play){try{S.play.stop()}catch(e){}S.play=null;resetBtns();if(S.rv)enterReview(S.rv.pi)}};
+$('bCancel').onclick=function(){if(S.rec)stopRec('cancel')};
+$('bNext').onclick=function(){if(!S.rv)return;var nx=nextNeed(S.rv.pi);if(nx>=0)startRec(false,nx)};
+$('bRedo').onclick=function(){if(!S.rv)return;startRec(false,S.rv.pi)};
+$('bPrev').onclick=function(){if(!S.rv)return;var pv=prevRec(S.rv.pi);if(pv>=0)startRec(false,pv)};
+$('bHear').onclick=function(){var p=getPlan(S.layer)[S.pi];if(p)listen(p.a-1.5,p.b+0.5)};
+$('gain').oninput=function(){var v=+$('gain').value;setGain(v,true);$('gDb').textContent=v+' dB';$('cAuto').checked=false};
+$('bClearSec').onclick=function(){if(S.rec)return;var p=getPlan(S.layer)[S.pi];if(!p)return;
+ if(p.mode==='copy'){$('boothMsg').textContent='Part '+(p.i+1)+' is a copy, it has no take of its own. Delete the take of part '+(findP(getPlan(S.layer),p.root).i+1)+' instead.';return}
+ var K=tkey(S.song),T=S.takes[K];for(var k=T.length-1;k>=0;k--)if(T[k].pid===p.pid)T.splice(k,1);zeroLegacy(T,p.a,p.b);
+ dbSet(K,T);exitReview();drawAll();$('boothMsg').textContent='Take of part '+(p.i+1)+' deleted for '+layerInfo(S.layer)[1]+'.'};
+/* assemble one layer: every part where it belongs, repeats copied in, one file the length of the song */
+function put(out,e0,sr,t,shift,a,b,clip,add){var o=Math.round((t.t0+shift-e0)*sr),n=out.length,fo=Math.round(0.35*sr),fi=Math.round(0.012*sr),A=Math.round((a-e0)*sr),B=Math.round((b-e0)*sr);
+ for(var i=0;i<t.data.length;i++){var j=o+i;if(j<0||j>=n)continue;var v=t.data[i];
+  if(clip){if(j<A||j>=B)continue;if(j<A+fi)v*=(j-A)/fi;if(j>B-fo)v*=0.5+0.5*Math.cos(Math.PI*(j-(B-fo))/fo)}
+  if(add)out[j]+=v;else out[j]=v}}
+/* ---------- guide take: the free lead sets where everything else goes ---------- */
+function gdkey(){return 'vb:gd:'+S.proj.name+':'+S.song.n}
+function guideOn(){try{return S.proj&&S.song&&localStorage.getItem(gdkey())==='1'}catch(e){return !!(S.gmem&&S.gmem[S.song&&S.song.n])}}
+function phrases(d,sr,t0){var hop=Math.round(sr*0.01),n=Math.floor(d.length/hop),r=new Float32Array(n),i,j;
+ for(i=0;i<n;i++){var a=0;for(j=0;j<hop;j++){var v=d[i*hop+j];a+=v*v}r[i]=Math.sqrt(a/hop)}
+ var so=Array.prototype.slice.call(r).sort(function(a,b){return a-b}),p95=so[Math.floor(so.length*0.95)]||0;if(p95<1e-4)return[];
+ var on=0.15*p95,off=0.08*p95,ph=[],cur=null;
+ for(i=0;i<n;i++){if(!cur){if(r[i]>=on)cur={a:i,b:i}}else{if(r[i]>=off)cur.b=i;else if(i-cur.b>3){ph.push(cur);cur=null}}}
+ if(cur)ph.push(cur);
+ var m=[];ph.forEach(function(q){var l=m[m.length-1];if(l&&(q.a-l.b)*0.01<0.35)l.b=q.b;else m.push({a:q.a,b:q.b})});
+ return m.filter(function(q){return (q.b-q.a)*0.01>=0.15}).map(function(q){return{t:t0+q.a*0.01,e:t0+q.b*0.01}})}
+function guideShifts(){if(!guideOn())return null;var T=S.takes[tkey(S.song,'lead')]||[];if(!T.length)return null;
+ var key=S.song.n+':'+T.length+':'+(T[T.length-1].at||0)+':'+(T[T.length-1].data.length);
+ if(S.gc&&S.gc.key===key)return S.gc.res;
+ var A=assemble('lead'),ln=selLines('lead').filter(function(l){return !l.free}),res=null;
+ if(A&&ln.length){var ph=phrases(A.data,A.sr,A.t0),N=ln.length,M=ph.length,i,j;
+  if(M){var df=[];ln.forEach(function(l){var b=1e9;ph.forEach(function(q){var d=q.t-l.t0;if(Math.abs(d)<Math.abs(b))b=d});df.push(b)});
+   df.sort(function(a,b){return a-b});var med=df[Math.floor(df.length/2)],TOL=1.2,SL=0.5,SP=0.3,D=[],B=[];
+   for(i=0;i<=N;i++){D.push(new Float64Array(M+1));B.push(new Int8Array(M+1))}
+   for(i=1;i<=N;i++){D[i][0]=i*SL;B[i][0]=1}for(j=1;j<=M;j++){D[0][j]=j*SP;B[0][j]=2}
+   for(i=1;i<=N;i++)for(j=1;j<=M;j++){var best=D[i-1][j]+SL,bt=1,x=D[i][j-1]+SP;if(x<best){best=x;bt=2}
+    var rs=ph[j-1].t-ln[i-1].t0-med;if(Math.abs(rs)<=TOL){x=D[i-1][j-1]+Math.abs(rs)/TOL;if(x<best){best=x;bt=3}}D[i][j]=best;B[i][j]=bt}
+   var sh=new Array(N).fill(null);i=N;j=M;while(i>0||j>0){if(i===0){j--;continue}if(j===0){i--;continue}var b=B[i][j];if(b===3){sh[i-1]=ph[j-1].t-ln[i-1].t0;i--;j--}else if(b===1)i--;else j--}
+   var mt=sh.filter(function(v){return v!==null}).length;
+   if(mt){for(i=0;i<N;i++)if(sh[i]===null){var bd=1e9,bv=0;for(j=0;j<N;j++)if(sh[j]!==null&&Math.abs(j-i)<bd){bd=Math.abs(j-i);bv=sh[j]}sh[i]=bv}
+    res={lines:ln,shifts:sh,matched:mt,total:N,phrases:M,med:med}}}}
+ S.gc={key:key,res:res};return res}
+function gsOf(G,p){if(!G)return 0;var bi=0,bd=1e9;G.lines.forEach(function(l,i){var d=Math.abs(l.t0-p.anchor);if(d<bd){bd=d;bi=i}});return G.shifts[bi]||0}
+function showGuide(){var on=guideOn();$('cFree').checked=on;var el=$('freeNote');if(!on){el.classList.add('hid');return}el.classList.remove('hid');
+ var G=guideShifts(),T=S.takes[tkey(S.song,'lead')]||[];
+ if(S.layer==='lead')el.innerHTML='Guide take is on. Sing the whole lead once, all the way, in your own time (the dot is only a help). Everything you record on the other layers is placed against the phrases of this take.'+(T.length?' <span class="ok">Guide recorded.</span>':'');
+ else if(!T.length)el.innerHTML='<span class="bad">No guide yet.</span> Record the lead first (Lead layer, whole song). Until then nothing is rearranged.';
+ else if(!G)el.innerHTML='<span class="bad">No phrases were found in the lead take.</span> Is it too quiet? Record it again.';
+ else el.innerHTML='Aligned '+G.matched+' of '+G.total+' lead lines to phrases you sang ('+G.phrases+' phrases heard). Lines without a match follow their nearest matched neighbour. Record the other layers while hearing your lead (tick "hear my other layers").'}
+$('cFree').onchange=function(){if(S.rec||S.play){showGuide();return}try{localStorage.setItem(gdkey(),$('cFree').checked?'1':'0')}catch(e){}(S.gmem=S.gmem||{})[S.song.n]=$('cFree').checked;S.gc=null;if($('cFree').checked&&S.layer!=='lead')$('cOver').checked=true;exitReview();drawAll()};
+function assemble(L){L=L||S.layer;var s=S.song,T=S.takes[tkey(s,L)]||[];if(!T.length)return null;
+ var sr=T[0].sr,e0=Math.max(0,s.t0),e1=s.t1+2,n=Math.round((e1-e0)*sr),out=new Float32Array(n),P=getPlan(L),placed=0,copies=0,G=(L==='lead')?null:guideShifts();
+ T.filter(function(t){return !t.pid}).sort(function(a,b){return (a.whole?0:1)-(b.whole?0:1)||a.at-b.at}).forEach(function(t){put(out,e0,sr,t,0,0,0,false,false);placed++});
+ T.filter(function(t){return t.pid&&!findP(P,t.pid)}).forEach(function(t){put(out,e0,sr,t,0,0,0,false,true);placed++});
+ P.forEach(function(p){var t,shift=0,cp=p.mode==='copy';
+  if(cp){var sp=findP(P,p.root);t=sp&&findTake(T,sp.pid);if(!t)return;shift=p.anchor-sp.anchor}else{t=findTake(T,p.pid);if(!t)return}
+  var gs=gsOf(G,p);shift+=gs;put(out,e0,sr,t,shift,p.a+gs,p.b+gs,cp,true);if(cp)copies++;else placed++});
+ return{data:out,sr:sr,t0:e0,placed:placed,copies:copies}}
+function listen(from,to){if(S.rec||S.play)return;var A=assemble(),all=$('cOver').checked,ctx=getCtx(),s=S.song,srcs=[];
+ var O=all?othersBuf(ctx):null;if(!A&&!O){$('boothMsg').textContent='Nothing recorded yet.';return}
+ var base=A?A.t0:O.t0,f=(from==null)?base:Math.max(base,from),dur=(to==null)?null:Math.max(0.2,to-f),t=ctx.currentTime+0.1,first=true;
+ function go(buf,bt0,isDemo){var v=ctx.createBufferSource();v.buffer=buf;v.connect(ctx.destination);var off=f-bt0,at=t,d=dur;if(off<0){at+=-off;if(d!=null)d+=off;off=0}
+  try{if(d!=null)v.start(at,off,d);else v.start(at,off)}catch(e){try{v.start(at)}catch(e2){}}
+  srcs.push(v);return v}
+ var main=null;
+ if(A){var b=ctx.createBuffer(1,A.data.length,A.sr);b.getChannelData(0).set(A.data);main=go(b,A.t0)}
+ if(O){var ov=go(O.buf,O.t0);if(!main)main=ov}
+ var useClick=$('cClick').checked||!S.buf;
+ if(useClick){var cb=clickBuf(f,(to==null?s.t1+2:to));var cv=ctx.createBufferSource();cv.buffer=cb;cv.connect(ctx.destination);cv.start(t);srcs.push(cv)}else go(S.buf,audOffset(),true);
+ var done=function(){if(!S.play)return;S.play=null;resetBtns();if(S.rv)enterReview(S.rv.pi)};
+ if(dur!=null)S.playTm=setTimeout(function(){if(S.play){try{S.play.stop()}catch(e){}done()}},dur*1000+300);else if(main)main.onended=done;
+ S.play={stop:function(){clearTimeout(S.playTm);srcs.forEach(function(x){try{x.stop()}catch(e){}})}};
+ $('bStop').classList.remove('hid');$('bStop').textContent='Stop playing';$('bStop').disabled=false;
+ $('boothMsg').textContent='Playing '+(A?layerInfo(S.layer)[1]:'your layers')+(all&&A?' with your other layers':'')+' over the demo.'}
+$('bListen').onclick=function(){listen(null,null)};
+/* does the microphone hear the demo? three seconds of the demo with the mic open and you silent */
+$('bTest').onclick=function(){if(S.rec||S.play)return;var ctx=getCtx(),s=S.song,pp=getPlan(S.layer)[S.pi],useClick=$('cClick').checked||!S.buf,from=Math.max(0,(pp?pp.a:s.t0));
+ $('testMsg').textContent='Stay silent for three seconds...';
+ openMic(ctx).then(function(M){var src=ctx.createBufferSource(),at=ctx.currentTime+0.3,off=0;
+  if(useClick)src.buffer=clickBuf(from,from+4);else{src.buffer=S.buf;off=Math.max(0,from-audOffset())}
+  src.connect(ctx.destination);try{src.start(at,off)}catch(e){src.start(at)}
+  setTimeout(function(){try{src.stop()}catch(e){}closeMic(M);var f0=at*ctx.sampleRate,f1=(at+3)*ctx.sampleRate,s2=0,n=0,pk=0;M.blocks.forEach(function(b){if(b.f<f0+ctx.sampleRate*0.3||b.f>f1)return;for(var i=0;i<b.d.length;i++){s2+=b.d[i]*b.d[i];n++;var a=Math.abs(b.d[i]);if(a>pk)pk=a}});
+   if(!n){$('testMsg').textContent='The test could not hear anything from the microphone.';return}
+   var db=10*Math.log10(Math.max(1e-12,s2/n)),verdict=db<-50?'<span class="ok">Good:</span> the mic hears almost none of the music.':db<-40?'<span class="bad">Some of the music reaches the mic.</span> Turn the demo down, press the earphones in, or use wired headphones.':'<span class="bad">The mic hears the music clearly.</span> The demo is probably playing from the phone speaker, or the headphones leak badly. Plug in wired headphones, check the volume, then test again.';
+   $('testMsg').innerHTML=verdict+' Mic level during the demo: '+db.toFixed(1)+' dB (rough guide: below -50 is clean).'},3600)}).catch(function(e){$('testMsg').innerHTML='<span class="bad">Microphone not available: '+esc(e&&e.message||e)+'</span>'})};
+/* ---------- WAV export (24 bit mono) ---------- */
+function wav24(data,sr){var n=data.length,buf=new ArrayBuffer(44+n*3),v=new DataView(buf);
+ function ws(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))}
+ ws(0,'RIFF');v.setUint32(4,36+n*3,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*3,true);v.setUint16(32,3,true);v.setUint16(34,24,true);ws(36,'data');v.setUint32(40,n*3,true);
+ var o=44;for(var i=0;i<n;i++){var x=Math.max(-1,Math.min(1,data[i])),q=Math.round(x<0?x*8388608:x*8388607);if(q<0)q+=16777216;v.setUint8(o++,q&255);v.setUint8(o++,(q>>8)&255);v.setUint8(o++,(q>>16)&255)}
+ return new Blob([buf],{type:'audio/wav'})}
+S.wav24=wav24;
+function filesFor(layers){var s=S.song,out=[],k='exp:'+S.proj.name+':'+s.n,c=(S.exports[k]=(S.exports[k]||0)+1),base=s.name.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')||'Song';
+ layers.forEach(function(L){var A=assemble(L);if(!A)return;var gt=guideOn()?'_guide'+(S.proj.fromLyr?'':'_at'+A.t0.toFixed(2)+'s'):'',nm=base+'_'+LSLUG[L]+'_vocal'+gt+'_V'+c+'.wav',blob=wav24(A.data,A.sr);out.push({name:nm,blob:blob,file:new File([blob],nm,{type:'audio/wav'}),layer:L,t0:A.t0,placed:A.placed,copies:A.copies})});return out}
+function deliver(fs){if(!fs.length){$('boothMsg').textContent='Nothing recorded yet on that layer.';return}
+ var info=fs.map(function(f){return esc(f.name)+' (to '+esc(layerInfo(f.layer)[2])+'; '+f.placed+' sung part'+(f.placed===1?'':'s')+(f.copies?' and '+f.copies+' copied':'')+')'}).join(', '),done=function(){$('boothMsg').innerHTML='<span class="ok">Exported:</span> '+info+'. Every file is the length of the song and starts where the song starts, at '+fmt(fs[0].t0)+' on the project timeline, with the parts already in place. '+(guideOn()?'These files carry your own timing (guide take), so the script keeps it and does not snap it to the grid. ':'')+'Drop each on the track named in brackets (at the song start is best, anywhere works) and run the script.'};
+ function dl(){fs.forEach(function(f,i){setTimeout(function(){var a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)},i*400)});done()}
+ var files=fs.map(function(f){return f.file});
+ if(navigator.canShare&&navigator.canShare({files:files})){navigator.share({files:files,title:fs[0].name}).then(done).catch(function(e){if(e&&e.name==='AbortError')return;dl()})}else dl()}
+/* ---------- quick session: every part of every song, in order ---------- */
+function countBuf(from,to,tFirst,beat){var ctx=getCtx(),sr=ctx.sampleRate,n=Math.ceil((to-from)*sr),b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0);
+ for(var k=4;k>=1;k--){var t=tFirst-k*beat;if(t<from)continue;var i=Math.round((t-from)*sr),f=k===1?2000:1500;for(var j=0;j<2200&&i+j<n;j++)d[i+j]+=Math.sin(2*Math.PI*f*j/sr)*Math.exp(-j/520)*0.55}return b}
+function quickBuild(){var q=[],cur=S.song,i=0;
+ return new Promise(function(res){(function nx(){if(i>=S.proj.songs.length){S.song=cur;S.pl={};res(q);return}
+  var sg=S.proj.songs[i],si=i++;S.song=sg;S.pl={};S.gc=null;
+  loadTakes(sg).then(function(){LAYERS.forEach(function(l){var L=l[0],T=S.takes[tkey(sg,L)]||[];if(T.some(function(t){return !t.pid}))return;
+   var nm=(sg.newTitle||sg.title||sg.name)+' · '+layerInfo(L)[1];
+   if(guideOn()&&L==='lead'){if(!T.length&&selLines('lead').length)q.push({si:si,L:L,whole:true,lab:nm+' · the whole song, in your own time'});return}
+   var P=getPlan(L);P.forEach(function(p){if(p.mode==='rec'&&!findTake(T,p.pid))q.push({si:si,L:L,pid:p.pid,lab:nm+' · '+p.label+' · '+(p.lines[0].cue||p.lines[0].text)})})});
+   S.pl={};nx()})})()})}
+function quickShow(){var q=S.q;if(!q||!q.active)return;$('qp').classList.remove('hid');var it=q.items[q.idx];
+ $('qRedo').disabled=q.idx<1;$('qGo').disabled=false;$('qEnd').disabled=false;
+ if(!it){q.active=false;$('qTitle').textContent='All parts recorded.';$('qInfo').textContent='Every part of every song is sung. Go back to the song list and press "Zip every song that has recordings".';$('qGo').classList.add('hid');$('qRedo').classList.add('hid');$('qEnd').textContent='Back to the songs';$('qEnd').onclick=function(){$('qp').classList.add('hid');$('qGo').classList.remove('hid');$('qRedo').classList.remove('hid');$('qEnd').textContent='End session';$('qEnd').onclick=quickEnd;$('back').onclick()};
+  $('curL').innerHTML='<span class="w" style="--p:100%">All parts recorded</span>';$('n1').textContent='';$('n2').textContent='';$('boothMsg').innerHTML='<span class="ok">All parts recorded.</span>';return}
+ $('qTitle').textContent='Next: part '+(q.idx+1)+' of '+q.items.length;$('qInfo').textContent=it.lab+'. Press Ready: the music plays '+q.lead+' seconds first, then four clicks count you in.';$('qGo').textContent=q.idx?'Ready for the next part':'Ready'}
+function quickGo(){var q=S.q;if(!q||!q.active||S.rec||S.play)return;var it=q.items[q.idx];if(!it){quickShow();return}
+ function go(){S.layer=it.L;var P=getPlan(it.L),pi=0;if(!it.whole)for(var k=0;k<P.length;k++)if(P[k].pid===it.pid)pi=k;S.pi=pi;exitReview();drawAll();$('qGo').disabled=true;$('qRedo').disabled=true;startRec(!!it.whole,pi)}
+ if(S.song!==S.proj.songs[it.si]){$('qGo').disabled=true;openSong(it.si).then(go)}else go()}
+function quickEnd(){if(S.rec)stopRec('cancel');if(S.q)S.q.active=false;$('qp').classList.add('hid');$('boothMsg').textContent='Session ended. Press Quick session again later: it carries on with the parts still unsung.'}
+$('qGo').onclick=quickGo;$('qEnd').onclick=quickEnd;
+$('qRedo').onclick=function(){var q=S.q;if(!q||S.rec||q.idx<1)return;q.idx--;quickGo()};
+$('bQuick').onclick=function(){if(!S.proj||S.rec||S.play)return;var ld=Math.max(3,Math.min(30,+$('qLead').value||10));try{localStorage.setItem('vb:qlead',String(ld))}catch(e){}$('zipMsg').textContent='Looking for the parts still to sing...';
+ quickBuild().then(function(items){if(!items.length){$('zipMsg').innerHTML='<span class="ok">All parts recorded.</span> Nothing is left to sing. Press "Zip every song that has recordings".';return}
+  S.q={active:true,items:items,idx:0,lead:ld};$('zipMsg').textContent='';$('qGo').classList.remove('hid');$('qRedo').classList.remove('hid');
+  S.song=null;openSong(items[0].si).then(function(){$('qp').classList.remove('hid');quickShow();$('boothMsg').textContent=items.length+' parts to sing across '+S.proj.songs.length+' songs. Press Ready.'})})};
+try{var ql=localStorage.getItem('vb:qlead');if(ql)$('qLead').value=ql}catch(e){}
+/* ---------- one zip per song: files named the way the project expects ---------- */
+var TRK={lead:'Lead_Vocal_record',double:'Vocal_Double_record',harm:'Backing_and_Harmonies_record',ad:'Ad-libs_record'};
+function pad2(n){return (n<10?'0':'')+n}
+function tokOf(s){return String(s.name).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')||'Song'}
+function titleOf(s){return s.newTitle||s.title||s.name}
+function startTag(t){var x=Math.round(Math.max(0,t)*1000),a=Math.floor(x/1000),b=x%1000;return a+'_'+(b<10?'00':b<100?'0':'')+b}
+var CRCT=null;function crc32(u8){if(!CRCT){CRCT=new Uint32Array(256);for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;CRCT[n]=c>>>0}}var c2=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c2=CRCT[(c2^u8[i])&255]^(c2>>>8);return (c2^0xFFFFFFFF)>>>0}
+function zipOf(files){var parts=[],cen=[],off=0,enc=new TextEncoder(),d=new Date(),dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF,dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+ files.forEach(function(f){var nm=enc.encode(f.name),u8=f.u8,crc=crc32(u8),h=new DataView(new ArrayBuffer(30));
+  h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint16(10,dt,true);h.setUint16(12,dd,true);h.setUint32(14,crc,true);h.setUint32(18,u8.length,true);h.setUint32(22,u8.length,true);h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+  var c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,dt,true);c.setUint16(14,dd,true);c.setUint32(16,crc,true);c.setUint32(20,u8.length,true);c.setUint32(24,u8.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+  cen.push(c.buffer,nm);parts.push(h.buffer,nm,u8);off+=30+nm.length+u8.length});
+ var cs=0;cen.forEach(function(x){cs+=x.byteLength});var e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+ return new Blob(parts.concat(cen,[e.buffer]),{type:'application/zip'})}
+function wavBytes(data,sr){var b=wav24(data,sr);return b.arrayBuffer().then(function(ab){return new Uint8Array(ab)})}
+/* builds the zip of the current song (S.song and its takes must be loaded) */
+function zipSong(){var s=S.song,guide=guideOn(),files=[],jobs=[],t0=null,tok=tokOf(s),info=[];
+ LAYERS.forEach(function(l){var A=assemble(l[0]);if(!A)return;if(t0===null)t0=A.t0;
+  var nm=pad2(s.n)+'_'+tok+'_start_'+startTag(A.t0)+'s_'+TRK[l[0]]+(guide?'_guide':'')+'.wav';
+  jobs.push(wavBytes(A.data,A.sr).then(function(u8){files.push({name:nm,u8:u8});info.push(layerInfo(l[0])[1]+': '+A.placed+' sung, '+A.copies+' copied')}))});
+ if(!jobs.length)return Promise.resolve(null);
+ return Promise.all(jobs).then(function(){
+  var k='zip:'+S.proj.name+':'+s.n,c=(S.exports[k]=(S.exports[k]||0)+1),title=titleOf(s),region=pad2(s.n)+'_'+title,
+   txt='PARISH SONG INFO 1\r\nn='+s.n+'\r\ntoken='+tok+'\r\ntitle='+title+'\r\nregion='+region+'\r\nstart='+(t0).toFixed(3)+'\r\nguide='+(guide?1:0)+'\r\nlayers='+files.map(function(f){return f.name}).join(' | ')+'\r\n',
+   iu=new TextEncoder().encode(txt);
+  files.push({name:pad2(s.n)+'_'+tok+'_start_'+startTag(t0)+'s_songinfo.txt',u8:iu});
+  files.sort(function(a,b){return a.name<b.name?-1:1});
+  var zn=pad2(s.n)+'_'+title.replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()+'_vocals_V'+c+'.zip',blob=zipOf(files);
+  return{name:zn,blob:blob,file:new File([blob],zn,{type:'application/zip'}),count:files.length-1,info:info,title:title,region:region}})}
+function shareZips(zs,msgEl){if(!zs.length){msgEl.textContent='Nothing recorded yet.';return}
+ var done=function(){msgEl.innerHTML='<span class="ok">Zipped:</span> '+zs.map(function(z){return esc(z.name)+' ('+z.count+' file'+(z.count===1?'':'s')+')'}).join(', ')+'. Unzip each into its song folder next to the .rpp. The files are named the way the project expects, and a song info file inside carries the new title ('+esc(zs[0].region)+') for the script to rename the region.'};
+ function dl(){zs.forEach(function(z,i){setTimeout(function(){var a=document.createElement('a');a.href=URL.createObjectURL(z.blob);a.download=z.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)},i*500)});done()}
+ var files=zs.map(function(z){return z.file});
+ if(navigator.canShare&&navigator.canShare({files:files})){navigator.share({files:files,title:zs[0].name}).then(done).catch(function(e){if(e&&e.name==='AbortError')return;dl()})}else dl()}
+$('bZip').onclick=function(){if(S.rec||S.play)return;$('boothMsg').textContent='Building the zip...';zipSong().then(function(z){if(!z){$('boothMsg').textContent='Nothing recorded yet on this song.';return}shareZips([z],$('boothMsg'))})};
+$('bZipAll').onclick=function(){if(!S.proj||S.rec)return;var out=[],cur=S.song,i=0;$('zipMsg').textContent='Building zips...';
+ (function nx(){if(i>=S.proj.songs.length){S.song=cur;S.pl={};shareZips(out,$('zipMsg'));return}
+  var sg=S.proj.songs[i++];S.song=sg;S.pl={};S.gc=null;loadTakes(sg).then(function(){return zipSong()}).then(function(z){if(z)out.push(z);nx()})})()};
+$('bExport').onclick=function(){deliver(filesFor([S.layer]))};
+$('bExAll').onclick=function(){deliver(filesFor(LAYERS.map(function(l){return l[0]})))};
+S.syl=syl;S.dotPlan=dotPlan;S.guideShifts=guideShifts;S.getPlan=getPlan;S.assemble=assemble;S.selLines=selLines;S.nextNeed=nextNeed;window.__VB=S;window.__VB_parse={rpp:parseRpp,lyr:parseLyr};
+dbOpen();
+})();
+</script></body></html>
