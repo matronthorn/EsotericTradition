@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VocalBooth V4</title>
+<style>
+:root{--bg:#0b0a0c;--pn:#16131a;--ln:#2a2430;--tx:#e8e2d6;--dm:#8d8594;--ac:#c9a24a;--rd:#b8433a;--gn:#5f9a6a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 Georgia,'Times New Roman',serif}
+body{padding:env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 18px)}
+h1{font-size:20px;letter-spacing:.14em;text-transform:uppercase;margin:14px 0 2px;color:var(--ac)}
+h2{font-size:16px;margin:0 0 6px}
+.sub{color:var(--dm);font-size:13px;margin:0 0 12px}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:12px;padding:12px;margin:10px 0}
+button,.btn{font:inherit;color:var(--tx);background:#241f2b;border:1px solid #3a3242;border-radius:10px;padding:12px 14px;min-height:46px;cursor:pointer;display:inline-block;text-align:center}
+button.pri{background:var(--ac);color:#15110a;border-color:var(--ac);font-weight:bold}
+button.rec{background:var(--rd);border-color:var(--rd);color:#fff;font-weight:bold}
+button:disabled{opacity:.4}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row>*{flex:0 0 auto}
+.grow{flex:1 1 auto!important}
+.small{font-size:13px;color:var(--dm)}
+.ok{color:var(--gn)}.bad{color:var(--rd)}
+input[type=file]{display:none}
+select,input[type=number]{font:inherit;color:var(--tx);background:#1d1822;border:1px solid #3a3242;border-radius:8px;padding:8px}
+.song{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--ln)}
+.song:first-child{border-top:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{border:1px solid #3a3242;border-radius:999px;padding:6px 10px;font-size:13px;background:#1d1822}
+.chip.on{border-color:var(--ac);color:var(--ac)}
+.chip.done{background:#1c2a20;border-color:var(--gn)}
+#stage{min-height:46vh;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:10px 4px}
+.cur{font-size:clamp(26px,7.5vw,44px);line-height:1.2;margin:6px 0;font-weight:bold}
+.cur .w{background:linear-gradient(90deg,var(--ac) var(--p,0%),#5a5560 var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nxt{font-size:clamp(18px,5vw,26px);color:#7b7480;margin:4px 0}
+.tag{display:inline-block;font-size:12px;color:var(--ac);border:1px solid var(--ac);border-radius:6px;padding:1px 6px;margin:0 4px;vertical-align:middle}
+#cd{font-size:56px;color:var(--ac);min-height:64px}
+.meter{height:8px;background:#1d1822;border-radius:4px;overflow:hidden}
+.meter>i{display:block;height:100%;width:0;background:var(--gn)}
+#log{white-space:pre-wrap;font:12px/1.4 ui-monospace,Menlo,monospace;color:var(--dm)}
+.hid{display:none}
+</style></head><body>
+<h1>VocalBooth</h1>
+<p class="sub">Sing your clean vocals on your phone against the demo. One take, wear headphones.</p>
+<div id="warn" class="card hid"></div>
+
+<div id="home">
+ <div class="card">
+  <h2>1. Load the project</h2>
+  <p class="small">The .rpp from VigilMaster, or the Vocal Booth file made in the Lyrics tab for an older project (either carries every line, its time, key and words). A .vmlyr lyrics project also works on its own: its lines are timed from bars and tempo, counted from the start of each song, so use demos that begin at the start of the song. Optional: the album lyrics file (.txt from the Lyrics tab, or .vmlyr) to use your latest words.</p>
+  <div class="row">
+   <label class="btn">.rpp, Vocal Booth file or .vmlyr<input type="file" id="fRpp" accept=".rpp,.RPP,.txt,.vmlyr,.json,text/plain,application/json,*/*"></label>
+   <label class="btn">Lyrics (optional)<input type="file" id="fLyr" accept=".txt,.vmlyr,.json,text/plain"></label>
+   <label class="btn">Demo audio (mp3, wav, m4a)<input type="file" id="fAud" accept="audio/*,.mp3,.wav,.m4a,.flac" multiple></label>
+  </div>
+  <p class="small" id="loadMsg"></p>
+ </div>
+ <div class="card" id="songsCard" class="hid"><h2>2. Pick a song</h2><div id="songs"></div></div>
+</div>
+
+<div id="booth" class="hid">
+ <div class="row"><button id="back">Back</button><div class="grow"><b id="sName"></b><div class="small" id="sInfo"></div></div></div>
+ <div class="card">
+  <div class="chips" id="lay"></div>
+  <div class="chips" id="secs"></div>
+  <div id="stage"><div id="cd"></div><div class="small" id="secLbl"></div><div id="curL" class="cur"></div><div id="n1" class="nxt"></div><div id="n2" class="nxt"></div></div>
+  <div class="meter"><i id="lvl"></i></div><div class="small" id="lvlMsg">&nbsp;</div>
+  <div class="row small" style="margin-top:6px"><label><input type="checkbox" id="cAuto" checked> Auto level (first take sets it)</label>
+   <span>Level <b id="gDb">0 dB</b></span><input type="range" id="gain" min="-12" max="36" step="1" value="0" style="flex:1 1 120px">
+   <label><input type="checkbox" id="cOver" checked> Hear my other layers</label></div>
+  <div class="row" style="margin-top:10px">
+   <button class="rec grow" id="bRecAll">Record whole song</button>
+   <button class="rec grow" id="bRecSec">Record this section</button>
+   <button id="bStop" class="grow" disabled>Stop</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+   <button id="bListen" class="grow">Listen back</button>
+   <button id="bClearSec" class="grow">Delete this section take</button>
+   <button class="pri grow" id="bExport">Export this layer</button>
+   <button class="pri grow" id="bExAll">Export all layers</button>
+  </div>
+ </div>
+ <div class="card">
+  <div class="row"><label class="btn grow">Demo audio for this song<input type="file" id="fAud2" accept="audio/*,.mp3,.wav,.m4a,.flac"></label>
+   <label class="small"><input type="checkbox" id="cClick"> click track instead</label></div>
+  <p class="small" id="audMsg"></p>
+  <div class="row small" style="margin-bottom:8px"><label>Microphone <select id="mic"><option value="">Default</option></select></label>
+   <button id="bTest">Test: does the mic hear the music?</button></div>
+  <p class="small" id="testMsg">Wear wired headphones. The phone's own microphone can be used while headphones play the demo; if your headphones have a mic, pick whichever you want above. Bluetooth headphones add delay and often switch the mic to a poor mode. On Android, wired earphones with the phone's own mic usually give the least delay; if the take lands late, use the latency trim.</p>
+  <div class="row small">Audio starts at
+   <select id="audMode"><option value="auto">auto</option><option value="proj">project start</option><option value="song">this song's start</option></select>
+   Latency trim (ms) <input type="number" id="trim" value="0" step="10" style="width:84px">
+  </div>
+ </div>
+ <p class="small" id="boothMsg"></p>
+</div>
+<div class="card small"><b>How the take reaches REAPER.</b> Export the WAV, copy it to your Mac, drop it on <i>Lead Vocal (record)</i> anywhere in the project and run ParishAutoMix. The script finds where it belongs by itself.</div>
+<div class="card"><div id="log"></div></div>
+<script>
+(function(){
+'use strict';
+var $=function(i){return document.getElementById(i)};
+var S={proj:null,lyr:null,audio:[],song:null,sec:-1,ctx:null,buf:null,rec:null,play:null,raf:0,takes:{},db:null,exports:{},layer:'lead',wk:null};
+var LAYERS=[['lead','Lead','Lead Vocal (record)'],['double','Double','Vocal Double (record)'],['harm','Harmony and backing','Backing and Harmonies (record)'],['ad','Ad-libs','Ad-libs (record)']];
+var LSLUG={lead:'lead',double:'double',harm:'harmonies',ad:'adlibs'};
+function layerInfo(k){return LAYERS.filter(function(x){return x[0]===k})[0]}
+function log(m){var l=$('log');l.textContent=(m+'\n'+l.textContent).slice(0,3000)}
+function norm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'')}
+function fmt(t){t=Math.max(0,t);var m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
+/* ---------- environment check ---------- */
+(function(){var w=$('warn'),m=[];
+ if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!window.isSecureContext)m.push('The microphone needs a secure page (https or localhost). Opened as a plain file the phone may refuse it. Put this file on your own https site (for example on esoterictradition.com) and open it from there.');
+ if(!(window.AudioContext||window.webkitAudioContext)||!window.AudioWorkletNode)m.push('This browser lacks AudioWorklet. Use a current Safari or Chrome.');
+ if(m.length){w.classList.remove('hid');w.innerHTML='<b class="bad">Check:</b> '+m.join(' ')}})();
+/* ---------- storage (IndexedDB) ---------- */
+function dbOpen(){return new Promise(function(res){try{var q=indexedDB.open('vocalbooth',1);q.onupgradeneeded=function(){q.result.createObjectStore('kv')};q.onsuccess=function(){S.db=q.result;res()};q.onerror=function(){res()}}catch(e){res()}})}
+function dbGet(k){return new Promise(function(res){if(!S.db)return res(null);try{var r=S.db.transaction('kv').objectStore('kv').get(k);r.onsuccess=function(){res(r.result||null)};r.onerror=function(){res(null)}}catch(e){res(null)}})}
+function dbSet(k,v){return new Promise(function(res){if(!S.db)return res();try{var t=S.db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=function(){res()};t.onerror=function(){res()}}catch(e){res()}})}
+/* ---------- parsing the .rpp intent map ---------- */
+function parseRpp(txt,name){
+ var P={name:name,cfg:{},songs:[]},cur=null,byN={};
+ txt.split(/\r?\n/).forEach(function(l){
+  var m=l.match(/^\s*\|\s*(VOX[A-Z]+)\s*;\s*(.*)$/);if(!m)return;
+  var f=m[2].split(/\s;\s?|;\s/).map(function(x){return x.trim()}),k=m[1];
+  if(k==='VOXSONG'){cur={n:+f[0],name:f[1],title:f[6]||'',t0:+f[2],t1:+f[3],bpm:+f[4]||100,sig:f[5]||'4/4',secs:[],lines:[]};byN[cur.n]=cur;P.songs.push(cur)}
+  else if(k==='VOXSEC'){var s=byN[+f[0]];if(s)s.secs.push({name:f[1],t0:+f[2],t1:+f[3],role:f[4],sung:f[5]==='1',key:f[6],bpm:+f[9]||s.bpm,lines:[]})}
+  else if(k==='VOXLINE'){var g=byN[+f[0]];if(g){var raw=f.slice(10).join('; '),pp=raw.split(' \u00a6 '),ln={sec:f[1],role:f[2],t0:+f[3],t1:+f[4],syl:+f[5],layer:f[9]||'-',text:pp[0],ad:(pp[1]||'').trim()};g.lines.push(ln)}}
+ });
+ P.songs.forEach(function(s){s.lines.forEach(function(l){var sc=null;s.secs.forEach(function(x){if(!sc&&x.name===l.sec&&l.t0>=x.t0-0.01&&l.t0<=x.t1+0.01)sc=x});if(!sc)s.secs.forEach(function(x){if(!sc&&x.name===l.sec)sc=x});if(sc){sc.lines.push(l);l.secRef=sc}});});
+ return P}
+/* ---------- a .vmlyr lyrics project on its own: lines timed from bars and tempo, from the start of each song ---------- */
+function projFromVmlyr(txt,name){var j;try{j=JSON.parse(txt)}catch(e){return null}
+ var st=j&&j.state;if(!st||!st.songs||!st.songs.length)return null;var P={name:name,cfg:{},songs:[],fromLyr:true};
+ st.songs.forEach(function(sg,i){var s={n:i+1,name:sg.name||sg.title||('Song '+(i+1)),title:(sg.title&&sg.title!==sg.name)?sg.title:'',t0:0,t1:0,bpm:sg.bpm||100,sig:(sg.sig&&sg.sig!=='mixed')?sg.sig:'4/4',secs:[],lines:[]},cur=0,done=0;
+  (sg.secs||[]).slice().sort(function(a,b){return (a.bar0||0)-(b.bar0||0)}).forEach(function(c){
+   var beats=c.beats||4,bpm=c.bpm||sg.bpm||100,barS=beats*60/bpm,gap=((c.bar0||1)-1)-done;if(gap>0)cur+=gap*barS;
+   var t0=cur,dur=(c.bars||0)*barS;cur+=dur;done=(c.bar0||1)-1+(c.bars||0);
+   var ls=(c.lines||[]).filter(function(l){return (l.t||'').trim()}),sec={name:c.name,t0:t0,t1:t0+dur,role:c.role||'',sung:c.vox!==false&&ls.length>0,key:'',bpm:bpm,lines:[]},bpl=(c.frame&&c.frame.bpl)||(ls.length?(c.bars||1)/ls.length:1);
+   ls.forEach(function(l,k){var a=t0+k*bpl*barS,b=a+bpl*barS*0.94,ly=l.ly||'',ln={sec:c.name,role:c.role||'',t0:a,t1:b,syl:l.tg||0,layer:/harmony/.test(ly)?'harm':/double/.test(ly)?'double':'-',ly:ly,text:l.t.trim(),ad:((l.pre||'')+' '+(l.post||'')).trim(),secRef:sec};sec.lines.push(ln);s.lines.push(ln)});
+   s.secs.push(sec)});
+  s.t1=cur;P.songs.push(s)});
+ return P}
+/* ---------- parsing a lyrics file ---------- */
+function parseLyr(txt,name){
+ var songs=[];
+ try{var j=JSON.parse(txt);var st=j&&j.state;if(st&&st.songs){st.songs.forEach(function(sg){var o={title:sg.title||sg.name,secs:[]};(sg.secs||[]).forEach(function(sc){var L=(sc.lines||[]).map(function(l){return (l.t||'').trim()}).filter(Boolean);if(L.length)o.secs.push({name:sc.name,lines:L})});songs.push(o)});return songs}}catch(e){}
+ var cur=null,sec=null;
+ txt.split(/\r?\n/).forEach(function(raw){var l=raw.replace(/\s+$/,'');if(!l.trim())return;
+  var h=l.match(/^\s*(\d{1,3})\s{2,}(.+)$/);
+  if(h){cur={title:h[2].trim(),secs:[]};songs.push(cur);sec=null;return}
+  var sm=l.match(/^\s*\[(.+)\]\s*$/);
+  if(sm){if(!cur){cur={title:'Song',secs:[]};songs.push(cur)}sec={name:sm[1].trim(),lines:[]};cur.secs.push(sec);return}
+  if(sec)sec.lines.push(l.trim())});
+ return songs}
+function applyLyrics(){
+ var P=S.proj,L=S.lyr;if(!P||!L||!L.length)return 0;var used=0;
+ P.songs.forEach(function(s,i){
+  var m=null;if(L.length===P.songs.length)m=L[i];
+  if(!m)L.forEach(function(x){if(!m&&norm(x.title)&&(norm(x.title)===norm(s.name)||norm(x.title)===norm(s.title)))m=x});
+  if(!m)return;
+  var pool={};m.secs.forEach(function(x){(pool[norm(x.name)]=pool[norm(x.name)]||[]).push(x)});
+  var seen={};
+  s.secs.forEach(function(sc){var key=norm(sc.name),k=seen[key]||0;var cand=pool[key]&&pool[key][k];if(!cand&&pool[key]&&pool[key].length)cand=pool[key][pool[key].length-1];seen[key]=k+1;if(!cand)return;
+   sc.lines.forEach(function(ln,j){if(cand.lines[j]){ln.text=cand.lines[j];used++}})});
+ });
+ return used}
+/* ---------- loading files ---------- */
+function readText(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=rej;r.readAsText(f)})}
+function readBuf(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=rej;r.readAsArrayBuffer(f)})}
+$('fRpp').onchange=function(e){var f=e.target.files[0];if(!f)return;readText(f).then(function(t){var P=/^\s*\{/.test(t)?projFromVmlyr(t,f.name):parseRpp(t,f.name);if(!P||!P.songs.length){$('loadMsg').innerHTML='<span class="bad">Nothing to sing was found in that file. Use an .rpp from VigilMaster V114 or later, a Vocal Booth file from the Lyrics tab, or a .vmlyr lyrics project.</span>';return}
+ S.proj=P;var n=applyLyrics();$('loadMsg').textContent=P.songs.length+' song'+(P.songs.length>1?'s':'')+' loaded'+(n?'; '+n+' lines of words taken from the lyrics file':'')+'.'+(P.fromLyr?' Lines are timed from bars and tempo, counted from the start of each song.':'');dbSet('proj:'+f.name,P);showSongs()})};
+$('fLyr').onchange=function(e){var f=e.target.files[0];if(!f)return;readText(f).then(function(t){if(!S.proj&&/^\s*\{/.test(t)){var Q=projFromVmlyr(t,f.name);if(Q){S.proj=Q;$('loadMsg').textContent=Q.songs.length+' song'+(Q.songs.length>1?'s':'')+' loaded from the lyrics project. Lines are timed from bars and tempo, counted from the start of each song.';dbSet('proj:'+f.name,Q);showSongs();return}}S.lyr=parseLyr(t,f.name);var n=applyLyrics();$('loadMsg').textContent='Lyrics for '+S.lyr.length+' song'+(S.lyr.length===1?'':'s')+' read'+(S.proj?'; '+n+' lines applied.':'. Now load the .rpp.');if(S.proj)showSongs()})};
+$('fAud').onchange=function(e){Array.prototype.forEach.call(e.target.files,function(f){S.audio.push({name:f.name,file:f,buf:null})});$('loadMsg').textContent=S.audio.length+' audio file'+(S.audio.length===1?'':'s')+' ready.';if(S.proj)showSongs()};
+function audioFor(s){var P=S.proj,key=norm(s.name),k2=norm(s.title),hit=null;
+ if(s.audio)return s.audio;
+ S.audio.forEach(function(a){var n=norm(a.name);if(!hit&&((key.length>2&&n.indexOf(key)>=0)||(k2.length>2&&n.indexOf(k2)>=0)))hit=a});
+ if(!hit&&S.audio.length===1)hit=S.audio[0];return hit}
+function showSongs(){var P=S.proj;if(!P)return;var h='';
+ P.songs.forEach(function(s,i){var a=audioFor(s),done=takeCount(s);
+  h+='<div class="song"><div><b>'+esc(s.title||s.name)+'</b>'+(s.title?' <span class="small">('+esc(s.name)+')</span>':'')+'<div class="small">'+s.bpm+' bpm '+esc(s.sig)+' · '+s.secs.filter(function(x){return x.sung}).length+' sung sections · '+(a?'audio: '+esc(a.name):'no audio, click track')+(done?' · <span class="ok">'+done+' layer'+(done>1?'s':'')+' recorded</span>':'')+'</div></div><button data-i="'+i+'" class="pri">Open</button></div>'});
+ $('songs').innerHTML=h;$('songsCard').classList.remove('hid');
+ Array.prototype.forEach.call($('songs').querySelectorAll('button'),function(b){b.onclick=function(){openSong(+b.dataset.i)}})}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+/* ---------- takes ---------- */
+function tkey(s,L){return 'takes:'+S.proj.name+':'+s.n+':'+(L||S.layer)}
+function takeCount(s){var n=0;LAYERS.forEach(function(l){var t=S.takes[tkey(s,l[0])];if(t&&t.length)n++});return n}
+function loadTakes(s){return Promise.all(LAYERS.map(function(l){var k=tkey(s,l[0]);return dbGet(k).then(function(v){if(v&&!S.takes[k])S.takes[k]=v;if(!S.takes[k])S.takes[k]=[]})}))}
+function saveTakes(s){return dbSet(tkey(s),S.takes[tkey(s)])}
+function gkey(){return 'vb:g:'+S.proj.name+':'+S.song.n+':'+S.layer}
+function getGain(){try{var v=JSON.parse(localStorage.getItem(gkey())||'null');return v}catch(e){return null}}
+function setGain(db,set){try{localStorage.setItem(gkey(),JSON.stringify({db:db,set:!!set}))}catch(e){}}
+function curDb(){var g=getGain();return g?g.db:0}
+function showGain(){var g=getGain();$('gain').value=g?g.db:0;$('gDb').textContent=(g?g.db:0)+' dB'+(g&&g.set?'':(getGain()?'':' (not set yet)'))}
+/* ---------- the booth ---------- */
+function getCtx(){if(!S.ctx){var C=window.AudioContext||window.webkitAudioContext;S.ctx=new C({latencyHint:'interactive'})}if(S.ctx.state==='suspended')S.ctx.resume();return S.ctx}
+function openSong(i){var s=S.proj.songs[i];S.song=s;S.sec=-1;S.buf=null;
+ loadTakes(s).then(function(){
+  $('home').classList.add('hid');$('booth').classList.remove('hid');
+  $('sName').textContent=(s.title||s.name)+(s.title?' ('+s.name+')':'');$('sInfo').textContent=s.bpm+' bpm, '+s.sig+', '+fmt(s.t1-s.t0)+' of song';
+  drawLayers();drawSecs();showGain();setAudio();stageIdle();refreshMics()})}
+$('back').onclick=function(){stopAll();S.song=null;$('booth').classList.add('hid');$('home').classList.remove('hid');showSongs()};
+function drawLayers(){var h='';LAYERS.forEach(function(l){var n=(S.takes[tkey(S.song,l[0])]||[]).length;h+='<span class="chip'+(S.layer===l[0]?' on':'')+(n?' done':'')+'" data-l="'+l[0]+'">'+esc(l[1])+(n?' \u2713':'')+'</span>'});$('lay').innerHTML=h;Array.prototype.forEach.call($('lay').querySelectorAll('.chip'),function(c){c.onclick=function(){if(S.rec||S.play)return;S.layer=c.dataset.l;drawLayers();drawSecs();showGain();stageIdle()}})}
+function lnsFor(lines){var L=S.layer;if(L==='lead')return lines;
+ if(L==='double'){var d=lines.filter(function(l){return /double/.test(l.ly||'')});return d.length?d:lines}
+ if(L==='harm'){var hh=lines.filter(function(l){return /harmony/.test(l.ly||'')});if(hh.length)return hh;var h=lines.filter(function(l){return l.role==='chorus'||/double/.test(l.layer)});return h.length?h:lines}
+ var a=lines.filter(function(l){return l.ad}).map(function(l){return{t0:l.t0,t1:l.t1,role:l.role,layer:'-',text:l.ad,cue:l.text,secRef:l.secRef}});
+ if(!a.length)a=lines.map(function(l){return{t0:l.t0,t1:l.t1,role:l.role,layer:'-',text:'(ad-lib wherever it fits)',cue:l.text,secRef:l.secRef}});return a}
+function sung(){return S.song.secs.map(function(x,i){return{x:x,i:i}}).filter(function(o){return o.x.sung&&o.x.lines.length})}
+function drawSecs(){var h='',T=S.takes[tkey(S.song)]||[];
+ sung().forEach(function(o){var d=T.some(function(t){return t.sec===o.i});h+='<span class="chip'+(S.sec===o.i?' on':'')+(d?' done':'')+'" data-i="'+o.i+'">'+esc(o.x.name)+(d?' ✓':'')+'</span>'});
+ $('secs').innerHTML=h||'<span class="small">No sung sections in this song.</span>';
+ Array.prototype.forEach.call($('secs').querySelectorAll('.chip'),function(c){c.onclick=function(){if(S.rec)return;S.sec=+c.dataset.i;drawSecs();stageIdle()}});
+ if(S.sec<0&&sung().length){S.sec=sung()[0].i;drawSecs()}}
+function setAudio(){var a=audioFor(S.song);$('audMsg').textContent=a?('Demo: '+a.name):'No demo audio for this song yet. Pick it below, or use the click track.';
+ $('cClick').checked=!a;S.buf=null;
+ if(a){var go=function(){var ctx=getCtx();return ctx.decodeAudioData(a.buf.slice(0)).then(function(b){S.buf=b;$('audMsg').textContent='Demo: '+a.name+' ('+fmt(b.duration)+')';log('decoded '+a.name+' '+b.duration.toFixed(1)+'s '+b.sampleRate+'Hz')}).catch(function(e){$('audMsg').innerHTML='<span class="bad">Could not read that audio: '+esc(e&&e.message||e)+'</span>';$('cClick').checked=true})};
+  if(a.buf)go();else readBuf(a.file).then(function(b){a.buf=b;return go()})}}
+$('fAud2').onchange=function(e){var f=e.target.files[0];if(!f)return;var a={name:f.name,file:f,buf:null};S.song.audio=a;S.audio.push(a);setAudio()};
+function audOffset(){ /* timeline second at which the audio file begins */
+ var m=$('audMode').value,P=S.proj,b=S.buf;if(!b)return 0;
+ var plen=Math.max.apply(null,P.songs.map(function(x){return x.t1})),slen=S.song.t1-S.song.t0;
+ if(m==='proj')return 0;if(m==='song')return S.song.t0;
+ if(P.songs.length===1||S.song.t0<1)return Math.abs(b.duration-plen)<Math.abs(b.duration-slen)?0:S.song.t0;
+ return Math.abs(b.duration-slen)<Math.abs(b.duration-plen)?S.song.t0:0}
+function clickBuf(from,to){var ctx=getCtx(),sr=ctx.sampleRate,n=Math.ceil((to-from)*sr),b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0),bpm=S.song.bpm,beat=60/bpm,num=+String(S.song.sig).split('/')[0]||4;
+ var k=Math.ceil(from/beat-1e-6);for(var t=k*beat;t<to;t+=beat,k++){var i=Math.round((t-from)*sr),hi=(k%num)===0,f=hi?1500:1000;for(var j=0;j<2400&&i+j<n;j++){if(i+j<0)continue;d[i+j]+=Math.sin(2*Math.PI*f*j/sr)*Math.exp(-j/500)*(hi?.5:.3)}}
+ return b}
+function stageIdle(){$('cd').textContent='';var s=S.song,sc=s&&s.secs[S.sec];$('secLbl').textContent=sc?sc.name+(sc.key?' · '+sc.key:'')+' · '+fmt(sc.t0)+' to '+fmt(sc.t1):'';
+ var ls=sc?lnsFor(sc.lines):[];$('curL').innerHTML=ls[0]?lineHtml(ls[0],0):'';$('n1').textContent=ls[1]?(ls[1].cue||ls[1].text):'';$('n2').textContent=ls[2]?(ls[2].cue||ls[2].text):''}
+function lineHtml(l,p){var cue=l.cue?'<div class="small">around: '+esc(l.cue)+'</div>':'';var LB={adlib:'ad-lib after this line',double:'sing it twice for the double',harm:'harmony line',backing:'backing'},tg=(l.layer&&l.layer!=='-'?'<div><span class="tag">'+esc(LB[l.layer]||l.layer)+'</span></div>':'');return tg+'<span class="w" style="--p:'+(p*100).toFixed(1)+'%">'+esc(l.text)+'</span>'+cue}
+/* ---------- microphone and recording ---------- */
+var WK="class R extends AudioWorkletProcessor{process(i){var c=i[0]&&i[0][0];if(c){this.port.postMessage({f:currentFrame,d:c.slice(0)})}return true}}registerProcessor('rec',R);";
+function refreshMics(){if(!(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices))return;navigator.mediaDevices.enumerateDevices().then(function(ds){var sel=$('mic'),cur=sel.value||localStorage.getItem('vb:mic')||'',h='<option value="">Default</option>';ds.filter(function(d){return d.kind==='audioinput'&&d.deviceId&&d.deviceId!=='default'}).forEach(function(d,i){h+='<option value="'+esc(d.deviceId)+'">'+esc(d.label||('Microphone '+(i+1)))+'</option>'});sel.innerHTML=h;sel.value=cur;if(sel.value!==cur)sel.value=''}).catch(function(){})}
+$('mic').onchange=function(){try{localStorage.setItem('vb:mic',$('mic').value)}catch(e){}};
+function openMic(ctx){var dev=$('mic').value,c={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1};if(dev)c.deviceId={exact:dev};
+ return navigator.mediaDevices.getUserMedia({audio:c}).then(function(stream){
+  var ready=S.wk===ctx?Promise.resolve():ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WK],{type:'application/javascript'}))).then(function(){S.wk=ctx});
+  return ready.then(function(){var src=ctx.createMediaStreamSource(stream),node=new AudioWorkletNode(ctx,'rec',{numberOfInputs:1,numberOfOutputs:1,channelCount:1,channelCountMode:'explicit'}),mute=ctx.createGain();mute.gain.value=0;src.connect(node);node.connect(mute);mute.connect(ctx.destination);var M={stream:stream,node:node,src:src,blocks:[]};node.port.onmessage=function(m){M.blocks.push(m.data);if(M.onblock)M.onblock(m.data)};refreshMics();return M})})}
+function closeMic(M){try{M.node.disconnect();M.src.disconnect()}catch(e){}M.stream.getTracks().forEach(function(t){t.stop()})}
+function othersBuf(ctx){ /* the layers already recorded, mixed, for singing along or listening */
+ var s=S.song,sr=null,parts=[];LAYERS.forEach(function(l){if(l[0]===S.layer)return;var A=assemble(l[0]);if(A)parts.push(A)});if(!parts.length)return null;sr=parts[0].sr;var n=parts[0].data.length,b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0);parts.forEach(function(A){for(var i=0;i<n&&i<A.data.length;i++)d[i]+=A.data[i]*0.7});return{buf:b,t0:parts[0].t0}}
+function wake(on){try{if(on&&navigator.wakeLock){navigator.wakeLock.request('screen').then(function(l){S.wl=l}).catch(function(){})}else if(!on&&S.wl){S.wl.release();S.wl=null}}catch(e){}}
+function startRec(whole){
+ if(S.rec||S.play)return;var s=S.song,sc=s.secs[S.sec];if(!whole&&!sc){$('boothMsg').textContent='Pick a section first.';return}
+ var ctx=getCtx(),useClick=$('cClick').checked||!S.buf;
+ var spb=60/s.bpm,pre=Math.max(2,spb*4);
+ var tFrom=whole?s.t0-pre:sc.t0-pre,tTo=whole?s.t1+1:sc.t1+1;
+ var keepFrom=whole?s.t0-0.5:sc.t0-0.4,keepTo=whole?s.t1+1.5:sc.t1+0.8;
+ if(tFrom<0)tFrom=0;
+ $('boothMsg').textContent='Asking for the microphone';
+ openMic(ctx).then(function(M){
+  var peak=0;S.hold=0;var g0=Math.pow(10,curDb()/20);M.onblock=function(b){var d=b.d,p=0;for(var i=0;i<d.length;i++){var a=Math.abs(d[i]);if(a>p)p=a}p*=g0;peak=Math.max(peak*0.9,p);S.peak=peak;if(p>S.hold)S.hold=p};
+  var startAt=ctx.currentTime+0.2,srcNode=ctx.createBufferSource(),off=0,extra=[];
+  if(useClick){srcNode.buffer=clickBuf(tFrom,tTo)}else{srcNode.buffer=S.buf;off=tFrom-audOffset();if(off<0){startAt+=-off;off=0}}
+  var tlStart=useClick?tFrom:audOffset()+off;
+  var g=ctx.createGain();g.gain.value=1;srcNode.connect(g);g.connect(ctx.destination);
+  try{srcNode.start(startAt,off)}catch(e){srcNode.start(startAt)}
+  if($('cOver').checked){var O=othersBuf(ctx);if(O){var os=ctx.createBufferSource();os.buffer=O.buf;os.connect(ctx.destination);var oo=tlStart-O.t0,at=startAt;if(oo<0){at+=-oo;oo=0}try{os.start(at,oo)}catch(e){}extra.push(os)}}
+  wake(true);S.rec={M:M,srcNode:srcNode,extra:extra,startAt:startAt,tlStart:tlStart,whole:whole,secIdx:S.sec,layer:S.layer,keepFrom:keepFrom,keepTo:keepTo,end:tTo,ctx:ctx};
+  $('bStop').disabled=false;['bRecAll','bRecSec','bListen','bExport','bExAll','bTest'].forEach(function(i){$(i).disabled=true});
+  $('boothMsg').textContent='Recording '+layerInfo(S.layer)[1]+'. Sing it once, all the way.';runStage(S.rec,sc);
+ }).catch(function(e){$('boothMsg').innerHTML='<span class="bad">Microphone not available: '+esc(e&&e.message||e)+'</span>';S.rec=null})}
+function runStage(R,sc){var s=S.song,ls=lnsFor(R.whole?s.lines:sc.lines);if(!ls.length){stopRec();return}
+ function tick(){if(!S.rec)return;var ctx=R.ctx,t=R.tlStart+(ctx.currentTime-R.startAt);
+  var first=ls[0],cd=first.t0-t;
+  $('cd').textContent=cd>0&&cd<4?String(Math.ceil(cd)):'';
+  var i=0;while(i<ls.length-1&&t>=ls[i+1].t0-0.15)i++;var l=ls[i];
+  var p=Math.min(1,Math.max(0,(t-l.t0)/Math.max(.3,l.t1-l.t0)));
+  $('secLbl').textContent=layerInfo(R.layer)[1]+' · '+((l.secRef&&l.secRef.name)||'')+(l.secRef&&l.secRef.key?' · '+l.secRef.key:'')+' · '+fmt(t);
+  $('curL').innerHTML=lineHtml(l,p);$('n1').textContent=ls[i+1]?(ls[i+1].cue||ls[i+1].text):'';$('n2').textContent=ls[i+2]?(ls[i+2].cue||ls[i+2].text):'';
+  var pk=S.peak||0;$('lvl').style.width=Math.min(100,pk*100)+'%';$('lvl').style.background=pk>.97?'var(--rd)':'var(--gn)';
+  $('lvlMsg').textContent=S.hold>=.99?'Too loud somewhere: step back or lower the level.':(S.hold<.03&&ctx.currentTime-R.startAt>4?'Very quiet: hold the phone closer or raise the level.':' ');
+  if(t>=R.end){stopRec();return}
+  S.raf=requestAnimationFrame(tick)}
+ S.raf=requestAnimationFrame(tick)}
+function stopRec(){var R=S.rec;if(!R)return;S.rec=null;wake(false);cancelAnimationFrame(S.raf);
+ try{R.srcNode.stop()}catch(e){}R.extra.forEach(function(x){try{x.stop()}catch(e){}});closeMic(R.M);
+ var ctx=R.ctx,sr=ctx.sampleRate,lat=(ctx.outputLatency||0)+(ctx.baseLatency||0),user=(+$('trim').value||0)/1000;
+ var B=R.M.blocks;if(!B.length){$('boothMsg').textContent='Nothing was recorded.';resetBtns();return}
+ var n=0;B.forEach(function(b){n+=b.d.length});var all=new Float32Array(n),o=0;B.forEach(function(b){all.set(b.d,o);o+=b.d.length});
+ var tFirst=R.tlStart+(B[0].f/sr-R.startAt)-lat-user;
+ var i0=Math.max(0,Math.round((R.keepFrom-tFirst)*sr)),i1=Math.min(n,Math.round((R.keepTo-tFirst)*sr));
+ if(i1<=i0){$('boothMsg').textContent='The take was too short to keep.';resetBtns();return}
+ var data=all.slice(i0,i1),pk0=0;for(var i=0;i<data.length;i+=5){var a=Math.abs(data[i]);if(a>pk0)pk0=a}
+ /* level: the first take of a layer sets it (peak to -6 dB) when Auto is on; later takes reuse it so sections stay even */
+ var gi=getGain(),db,note='';
+ if($('cAuto').checked&&(!gi||!gi.set)&&pk0>=0.004){db=Math.max(-12,Math.min(36,Math.round(20*Math.log10(0.5/pk0))));setGain(db,true);note=' Level set to '+db+' dB for this layer in this song.'}
+ else db=gi?gi.db:0;
+ var gl=Math.pow(10,db/20);for(var k=0;k<data.length;k++){var v=data[k]*gl;data[k]=v>1?1:v<-1?-1:v}
+ var peak=Math.min(1,pk0*gl),seg={t0:tFirst+i0/sr,sr:sr,data:data,sec:R.whole?-1:R.secIdx,whole:R.whole,at:Date.now(),db:db};
+ var K=tkey(S.song,R.layer),T=S.takes[K];if(!R.whole){for(var q=T.length-1;q>=0;q--)if(T[q].sec===R.secIdx)T.splice(q,1)}else{T.length=0}
+ T.push(seg);dbSet(K,T);showGain();
+ var pdb=peak>0?20*Math.log10(peak):-99;
+ $('boothMsg').innerHTML=pk0<0.004?'<span class="bad">That take is almost silent. Check the microphone and try again.</span>':'<span class="ok">Take kept.</span> '+fmt(data.length/sr)+' of audio, peak '+pdb.toFixed(1)+' dB.'+note+(peak>=0.99?' It clips: lower the level and record again.':'')+' Latency compensated by '+Math.round((lat+user)*1000)+' ms.';
+ log('take '+R.layer+' '+(R.whole?'song':'section '+R.secIdx)+' t0='+seg.t0.toFixed(2)+' len='+(data.length/sr).toFixed(2)+'s rawpeak='+pk0.toFixed(3)+' gain='+db+'dB');
+ resetBtns();drawLayers();drawSecs();stageIdle()}
+function resetBtns(){S.hold=0;S.peak=0;$('lvl').style.width='0';$('lvlMsg').innerHTML='&nbsp;';$('bStop').disabled=true;['bRecAll','bRecSec','bListen','bExport','bExAll','bTest'].forEach(function(i){$(i).disabled=false});$('cd').textContent=''}
+function stopAll(){if(S.rec)stopRec();if(S.play){try{S.play.stop()}catch(e){}S.play=null}}
+$('bRecAll').onclick=function(){startRec(true)};$('bRecSec').onclick=function(){startRec(false)};
+$('bStop').onclick=function(){if(S.rec)stopRec();else if(S.play){try{S.play.stop()}catch(e){}S.play=null;resetBtns()}};
+$('gain').oninput=function(){var v=+$('gain').value;setGain(v,true);$('gDb').textContent=v+' dB';$('cAuto').checked=false};
+$('bClearSec').onclick=function(){if(S.rec||S.sec<0)return;var K=tkey(S.song),T=S.takes[K],sc=S.song.secs[S.sec];
+ for(var k=T.length-1;k>=0;k--){var t=T[k];if(t.sec===S.sec)T.splice(k,1);else if(t.whole&&sc){var a=Math.max(0,Math.round((sc.t0-0.4-t.t0)*t.sr)),b=Math.min(t.data.length,Math.round((sc.t1+0.8-t.t0)*t.sr));if(b>a)t.data.fill(0,a,b)}}
+ dbSet(K,T);drawLayers();drawSecs();$('boothMsg').textContent='Section take deleted for '+layerInfo(S.layer)[1]+'.'};
+/* assemble one layer's window from its segments (later takes cover earlier ones) */
+function assemble(L){var s=S.song,T=S.takes[tkey(s,L||S.layer)]||[];if(!T.length)return null;var sr=T[0].sr,e0=Math.max(0,s.t0-1),e1=s.t1+2,n=Math.round((e1-e0)*sr),out=new Float32Array(n);
+ T.slice().sort(function(a,b){return (a.whole?0:1)-(b.whole?0:1)||a.at-b.at}).forEach(function(t){var o=Math.round((t.t0-e0)*sr);for(var i=0;i<t.data.length;i++){var j=o+i;if(j>=0&&j<n)out[j]=t.data[i]}});
+ return{data:out,sr:sr,t0:e0}}
+$('bListen').onclick=function(){if(S.rec||S.play)return;var A=assemble(),all=$('cOver').checked,ctx=getCtx(),s=S.song,srcs=[];
+ var O=all?othersBuf(ctx):null;if(!A&&!O){$('boothMsg').textContent='Nothing recorded yet.';return}
+ var t=ctx.currentTime+0.1,t0=A?A.t0:O.t0;
+ if(A){var b=ctx.createBuffer(1,A.data.length,A.sr);b.getChannelData(0).set(A.data);var v=ctx.createBufferSource();v.buffer=b;v.connect(ctx.destination);v.start(t);srcs.push(v);v.onended=function(){S.play=null;resetBtns()}}
+ if(O){var ov=ctx.createBufferSource();ov.buffer=O.buf;ov.connect(ctx.destination);ov.start(t);srcs.push(ov);if(!A)ov.onended=function(){S.play=null;resetBtns()}}
+ var useClick=$('cClick').checked||!S.buf,bk=ctx.createBufferSource();
+ if(useClick){bk.buffer=clickBuf(t0,s.t1+2);bk.start(t)}else{bk.buffer=S.buf;var off=t0-audOffset();if(off>=0)bk.start(t,off);else bk.start(t-off,0)}
+ bk.connect(ctx.destination);srcs.push(bk);
+ S.play={stop:function(){srcs.forEach(function(x){try{x.stop()}catch(e){}})}};$('bStop').disabled=false;$('boothMsg').textContent='Playing '+(A?layerInfo(S.layer)[1]:'your layers')+(all&&A?' with your other layers':'')+' over the demo.'};
+/* does the microphone hear the demo? three seconds of the demo with the mic open and you silent */
+$('bTest').onclick=function(){if(S.rec||S.play)return;var ctx=getCtx(),s=S.song,sc=s.secs[S.sec]||s.secs[0],useClick=$('cClick').checked||!S.buf,from=Math.max(0,(sc?sc.t0:s.t0));
+ $('testMsg').textContent='Stay silent for three seconds...';
+ openMic(ctx).then(function(M){var src=ctx.createBufferSource(),at=ctx.currentTime+0.3,off=0;
+  if(useClick)src.buffer=clickBuf(from,from+4);else{src.buffer=S.buf;off=Math.max(0,from-audOffset())}
+  src.connect(ctx.destination);try{src.start(at,off)}catch(e){src.start(at)}
+  setTimeout(function(){try{src.stop()}catch(e){}closeMic(M);var f0=at*ctx.sampleRate,f1=(at+3)*ctx.sampleRate,s2=0,n=0,pk=0;M.blocks.forEach(function(b){if(b.f<f0+ctx.sampleRate*0.3||b.f>f1)return;for(var i=0;i<b.d.length;i++){s2+=b.d[i]*b.d[i];n++;var a=Math.abs(b.d[i]);if(a>pk)pk=a}});
+   if(!n){$('testMsg').textContent='The test could not hear anything from the microphone.';return}
+   var db=10*Math.log10(Math.max(1e-12,s2/n)),verdict=db<-50?'<span class="ok">Good:</span> the mic hears almost none of the music.':db<-40?'<span class="bad">Some of the music reaches the mic.</span> Turn the demo down, press the earphones in, or use wired headphones.':'<span class="bad">The mic hears the music clearly.</span> The demo is probably playing from the phone speaker, or the headphones leak badly. Plug in wired headphones, check the volume, then test again.';
+   $('testMsg').innerHTML=verdict+' Mic level during the demo: '+db.toFixed(1)+' dB (rough guide: below -50 is clean).'},3600)}).catch(function(e){$('testMsg').innerHTML='<span class="bad">Microphone not available: '+esc(e&&e.message||e)+'</span>'})};
+/* ---------- WAV export (24 bit mono) ---------- */
+function wav24(data,sr){var n=data.length,buf=new ArrayBuffer(44+n*3),v=new DataView(buf);
+ function ws(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))}
+ ws(0,'RIFF');v.setUint32(4,36+n*3,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*3,true);v.setUint16(32,3,true);v.setUint16(34,24,true);ws(36,'data');v.setUint32(40,n*3,true);
+ var o=44;for(var i=0;i<n;i++){var x=Math.max(-1,Math.min(1,data[i])),q=Math.round(x<0?x*8388608:x*8388607);if(q<0)q+=16777216;v.setUint8(o++,q&255);v.setUint8(o++,(q>>8)&255);v.setUint8(o++,(q>>16)&255)}
+ return new Blob([buf],{type:'audio/wav'})}
+S.wav24=wav24;
+function filesFor(layers){var s=S.song,out=[],k='exp:'+S.proj.name+':'+s.n,c=(S.exports[k]=(S.exports[k]||0)+1),base=s.name.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')||'Song';
+ layers.forEach(function(L){var A=assemble(L);if(!A)return;var nm=base+'_'+LSLUG[L]+'_vocal_V'+c+'.wav',blob=wav24(A.data,A.sr);out.push({name:nm,blob:blob,file:new File([blob],nm,{type:'audio/wav'}),layer:L,t0:A.t0})});return out}
+function deliver(fs){if(!fs.length){$('boothMsg').textContent='Nothing recorded yet on that layer.';return}
+ var info=fs.map(function(f){return esc(f.name)+' (to '+esc(layerInfo(f.layer)[2])+')'}).join(', '),done=function(){$('boothMsg').innerHTML='<span class="ok">Exported:</span> '+info+'. Each starts at '+fmt(fs[0].t0)+' on the project timeline. Drop each on the track named in brackets, anywhere, and run the script.'};
+ function dl(){fs.forEach(function(f,i){setTimeout(function(){var a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)},i*400)});done()}
+ var files=fs.map(function(f){return f.file});
+ if(navigator.canShare&&navigator.canShare({files:files})){navigator.share({files:files,title:fs[0].name}).then(done).catch(function(e){if(e&&e.name==='AbortError')return;dl()})}else dl()}
+$('bExport').onclick=function(){deliver(filesFor([S.layer]))};
+$('bExAll').onclick=function(){deliver(filesFor(LAYERS.map(function(l){return l[0]})))};
+window.__VB=S;window.__VB_parse={rpp:parseRpp,lyr:parseLyr};
+dbOpen();
+})();
+</script></body></html>
